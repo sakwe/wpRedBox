@@ -1,0 +1,222 @@
+.gallerySelector, .sampleWallItem {width:100%;
+	 float: left;
+	 border-bottom: 1px solid #cccccc;
+	 margin: 15px 0;
+	}
+.checkboxSelector {width: 3%;
+	 float: left;
+	}
+.gallerySelectorItem, .sampleWallItem {width: 96%;
+	 float: right;
+	}
+.gallerySelectorItem img, .sampleWallItem img {padding: 0 10px 10px 0;
+	}
+.gallerySelectorItem h4 small {font-weight: normal;
+	 font-size: 9px;
+	}
+.gallerySelectorItem .left, .sampleWallItem .left {float: left;
+	}
+
+#redbox_config_form{
+	max-width:950px;
+}
+
+#redbox_view_form{
+	max-width:950px;
+}
+
+#redbox_info_config , #redbox_wp_config{
+	border:solid 1px #5A91B1;
+	background-color:#E0F1FF;
+	max-width:900px;
+	padding:10px;
+	margin-top:20px;
+}
+
+#redbox_info_fb_config , #redbox_info_fb_import , #redbox_wp_config{
+	border:solid 1px #5A91B1;
+	background-color:#FFFF99;
+	max-width:900px;
+	padding:10px;
+	margin-top:20px;
+	clear:both;
+	
+}
+
+#redbox_facebook_options li , #redbox_wordpress_options li{
+	vertical-align:top;
+}
+
+#redbox_facebook_options li span , #redbox_wordpress_options li span{
+	display:inline-block;
+	width:250px !important;
+	font-weight:bold;
+	vertical-align:top;
+	margin-left:10px;
+}
+
+#redbox_facebook_options li input , #redbox_wordpress_options li input{
+	width:300px;
+}
+
+#redbox_facebook_options li textarea , #redbox_wordpress_options li textarea{
+	width:650px;
+	height:150px;
+}
+
+#redbox_fb_sync_buttons{
+	float:left;
+	clear:both;
+}
+
+#redbox_fb_sync_buttons li{
+	float:left !important;
+	width:24.2%;
+	text-align:center;
+	margin-left:5px;
+}
+
+#redbox_fb_sync_buttons li  a{
+	display:block !important;
+}
+
+#wp-admin-bar-wp-logo {display:none !important;}
+
+#wp-admin-bar-redbox .ab-item{background:transparent}
+
+#wpadminbar #adminbarredbox{height:28px;
+	padding:0 2px}
+
+
+#wpadminbar #adminbarredbox .adminbar-input {
+	font:13px/24px sans-serif;	
+	height:24px;	
+	width:24px;	
+	border:0;
+	margin-top:4px;
+	padding:0 3px 0 23px;
+	margin:0;
+	color:#ccc;
+	text-shadow:#444 0 -1px 0;
+	background:transparent;
+	background-position:4px 4px;
+	background-image:url(http://mrmondialisation.org/wp-content/plugins/redbox/img/redbox-ico.png); 
+	background-repeat:no-repeat;
+	
+	outline:0;
+	cursor:pointer;
+	-webkit-border-radius:3px;
+	border-radius:3px;
+	-webkit-box-shadow:none;
+	box-shadow:none;
+	-moz-box-sizing:border-box;
+	-webkit-box-sizing:border-box;
+	-ms-box-sizing:border-box;
+	box-sizing:border-box;
+	-webkit-transition-duration:400ms;
+	-webkit-transition-property:width,background;
+	-webkit-transition-timing-function:ease;
+	-moz-transition-duration:400ms;
+	-moz-transition-property:width,background;
+	-moz-transition-timing-function:ease;
+	-o-transition-duration:400ms;
+	-o-transition-property:width,background;
+	-o-transition-timing-function:ease
+}
+
+#wpadminbar.ie7 #adminbarredbox .adminbar-input{
+	margin-top:1px;
+	width:200px}
+
+#wpadminbar #adminbarredbox .adminbar-input:focus{color:#555;
+	text-shadow:0 1px 0 #fff;
+	width:350px;
+	background-color:rgba(255,255,255,.9);
+	cursor:text
+}
+
+#wpadminbar.ie8 #adminbarredbox .adminbar-input{background-color:#464646}
+
+#wpadminbar.ie8 #adminbarredbox .adminbar-input:focus{background-color:#fff}
+
+#wpadminbar #adminbarredbox .adminbar-input::-webkit-input-placeholder{color:#ddd}
+
+#wpadminbar #adminbarredbox .adminbar-input:-moz-placeholder{color:#ddd}
+
+#wpadminbar #adminbarredbox .adminbar-button{display:none}
+
+.redbox_column_author{
+	display:inline-block;
+	float:left;
+	clear:left;
+	font-weight:bold;
+	margin:5px 5px 5px 10px;
+}
+
+.redbox_column_title {
+	display:inline-block;
+	float:left;
+	clear:right;
+	margin:10px 5px 5px 10px;
+	overflow:hidden;
+}
+
+.redbox_column_description span{
+	display:inline-block;
+	float:left;
+	clear:none;
+	margin:0px 5px 10px 5px;
+	width:70%;
+}
+
+.redbox_column_picture img{
+	display:inline-block;
+	float:left;
+	clear:left;
+	width:20%;
+	max-width:120px;
+	height:auto;
+	margin:5px 5px 5px 10px;
+}
+
+.redbox_column_video{
+	display:inline-block;
+	float:left;
+	clear:both;
+	margin:5px 5px 5px 10px;
+}
+
+.redbox_column_import{
+	display:inline-block;
+	float:left;
+	clear:both;
+	margin:5px 5px 5px 10px;
+}
+
+.redbox_proposition_box{
+	float:left;
+	display:inline-block;
+	padding:0px;
+	width:33%;
+	height:180px;
+}
+
+.redbox_proposition_box_content{
+	width:98%;
+	height:98%;
+	background-color:#EFEEEE;
+	margin:1%;
+}
+
+#redbox_login{
+	display:inline-block;
+	width:33%;
+	height:420px;
+	float:right;
+	clear:right;
+	margin-right:0px;
+}
+
+#respond{
+	margin-bottom:0;
+}
