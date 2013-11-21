@@ -9,8 +9,6 @@ class RedBoxAdmin{
 	public function __construct(){
 		add_action('admin_init', array(__CLASS__, "plugin_init"));
 		add_action('admin_menu', array(__CLASS__, "setup_menus"));
-		add_action('admin_head', array(__CLASS__, "admin_header"));
-		add_action('admin_enqueue_scripts', array(__CLASS__, "enqueue_admin_scripts"));
 	}
 	
 	public function plugin_init(){
@@ -50,19 +48,6 @@ class RedBoxAdmin{
 		);
 	}
 	
-	public function admin_header() {
-		global $post_type;
-		echo '<style>';
-		if (($_GET['post_type'] == 'redbox') || ($post_type == 'redbox') || ($_GET['page'] == "redbox") ) :
-			echo '#icon-edit { background:transparent url('.WP_PLUGIN_URL.'/redbox/img/ico-menu.png) no-repeat; }';
-		endif;
-		echo '</style>';
-	}
-	
-	public function enqueue_admin_scripts() {
-		// nothing more to do than for users ("enqueue_admin_scripts" in redbox-user-interface)
-	}
-	
 	public function plugin_options() {
 		?>
 		<div class="wrap">
@@ -97,6 +82,20 @@ class RedBoxAdmin{
 		
 	}
 
+	function redbox_facebook_options() {
+		echo "<div class=\"wrap\"><div id=\"redbox_info_fb_config\">".REDBOX_FACEBOOK_CONFIG_HELP."</div>";
+		$options = get_option('redbox_options');
+		echo '<ul id="redbox_facebook_options">';
+		echo '<li><span>'.REDBOX_FACEBOOK_ID_LABEL.' : </span>';
+		echo '<input type="text" name="redbox_profile_field" id="redbox_profile_field" value="'.$options['facebook_id'].'" /></li>';
+		echo '<li><span>'.REDBOX_FACEBOOK_APPID_LABEL.' : </span>';
+		echo '<input type="text" name="facebook_appid_field" id="facebook_appid_field" value="'.$options['facebook_app_id'].'" /></li>';
+		echo '<li><span>'.REDBOX_FACEBOOK_SECRET_LABEL.' : </span>';
+		echo '<input type="text" name="facebook_appsecret_field" id="facebook_appsecret_field" value="'.$options['facebook_app_secret'].'" /></li>';
+		echo '</ul></div>';	
+		return true;
+	}
+	
 	function redbox_import_status() {
 		global $wpdb;		
 		global $importInfo,$posts_id;
@@ -122,20 +121,6 @@ class RedBoxAdmin{
 		<li><a href="'.$base_url.'import_forced" class="button" >'.REDBOX_IMPORT_FACEBOOK_FORCED.'</a></li>
 		</ul>';
 		echo "<div id=\"redbox_info_fb_import\">".REDBOX_IMPORT_BUTTON_HELP."</div></div>";
-		return true;
-	}
-
-	function redbox_facebook_options() {
-		echo "<div class=\"wrap\"><div id=\"redbox_info_fb_config\">".REDBOX_FACEBOOK_CONFIG_HELP."</div>";
-		$options = get_option('redbox_options');
-		echo '<ul id="redbox_facebook_options">';
-		echo '<li><span>'.REDBOX_FACEBOOK_ID_LABEL.' : </span>';
-		echo '<input type="text" name="redbox_profile_field" id="profileIDBox" value="'.$options['facebook_id'].'" /></li>';
-		echo '<li><span>'.REDBOX_FACEBOOK_APPID_LABEL.' : </span>';
-		echo '<input type="text" name="facebook_appid_field" id="profileAppBox" value="'.$options['facebook_app_id'].'" /></li>';
-		echo '<li><span>'.REDBOX_FACEBOOK_SECRET_LABEL.' : </span>';
-		echo '<input type="text" name="facebook_appsecret_field" id="profileSecretBox" value="'.$options['facebook_app_secret'].'" /></li>';
-		echo '</ul></div>';	
 		return true;
 	}
 }

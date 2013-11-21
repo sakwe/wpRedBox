@@ -1,21 +1,9 @@
-.gallerySelector, .sampleWallItem {width:100%;
-	 float: left;
-	 border-bottom: 1px solid #cccccc;
-	 margin: 15px 0;
-	}
-.checkboxSelector {width: 3%;
-	 float: left;
-	}
-.gallerySelectorItem, .sampleWallItem {width: 96%;
-	 float: right;
-	}
-.gallerySelectorItem img, .sampleWallItem img {padding: 0 10px 10px 0;
-	}
-.gallerySelectorItem h4 small {font-weight: normal;
-	 font-size: 9px;
-	}
-.gallerySelectorItem .left, .sampleWallItem .left {float: left;
-	}
+#adminbar-redbox::-webkit-input-placeholder,
+#adminbar-redbox:-moz-placeholder,
+#adminbar-redbox::-moz-placeholder,
+#adminbar-redbox:-ms-input-placeholder {
+	text-shadow: none;
+}
 
 #redbox_config_form{
 	max-width:950px;
@@ -145,7 +133,7 @@
 
 #wpadminbar #adminbarredbox .adminbar-button{display:none}
 
-.redbox_column_author{
+.redbox_minibox_author{
 	display:inline-block;
 	float:left;
 	clear:left;
@@ -153,7 +141,7 @@
 	margin:5px 5px 5px 10px;
 }
 
-.redbox_column_title {
+.redbox_minibox_title {
 	display:inline-block;
 	float:left;
 	clear:right;
@@ -161,7 +149,7 @@
 	overflow:hidden;
 }
 
-.redbox_column_description span{
+.redbox_minibox_description span{
 	display:inline-block;
 	float:left;
 	clear:none;
@@ -169,7 +157,7 @@
 	width:70%;
 }
 
-.redbox_column_picture img{
+.redbox_minibox_picture img{
 	display:inline-block;
 	float:left;
 	clear:left;
@@ -179,14 +167,14 @@
 	margin:5px 5px 5px 10px;
 }
 
-.redbox_column_video{
+.redbox_minibox_video{
 	display:inline-block;
 	float:left;
 	clear:both;
 	margin:5px 5px 5px 10px;
 }
 
-.redbox_column_import{
+.redbox_minibox_import{
 	display:inline-block;
 	float:left;
 	clear:both;

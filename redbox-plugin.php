@@ -41,27 +41,43 @@ define ("REDBOX_LANGUAGE","fr");
 // let's load languages support for RedBox 
 require_once(WP_PLUGIN_DIR.'/redbox/lang/redbox-lang.php');
 
-// use this important (master) class : RedBoxDataImporter (and UrlDataRetriever)
-require_once(WP_PLUGIN_DIR.'/redbox/includes/redbox-data-importer.class.php');
+// integrate this important (master) class : RedBoxDataImporter (and RedBoxDataRetriever)
+require_once(WP_PLUGIN_DIR.'/redbox/includes/redbox-data-manager.class.php');
 
-// load plugin configuration for admins
+// integrate plugin configuration for admins only
 require_once(WP_PLUGIN_DIR.'/redbox/includes/redbox-admin-interface.class.php');
 
-// load plugin options for everyone
+// integrate plugin options for every users (with subscribers)
 require_once(WP_PLUGIN_DIR.'/redbox/includes/redbox-user-interface.class.php');
 
-// integrate RedBox in the blog a get RedBox interfaces
+// integrate RedBox in the blog a get RedBox interfaces (for everyone)
 require_once(WP_PLUGIN_DIR.'/redbox/includes/redbox-blog-interface.class.php');
+
+// integrate RedBox action dispatcher
+require_once(WP_PLUGIN_DIR.'/redbox/includes/redbox-action-dispatcher.class.php');
 
 class RedBox{
 
-	public function __construct(){
+	public function __construct($action=null){
 		// get the admin in the instance
 		$this->admin = new RedBoxAdmin();
 		// get the user interface in the instance
 		$this->user = new RedBoxUser();
 		// get the blog intgration in the instance
-		//$this->blog = new RedBoxBlog();
+		$this->blog = new RedBoxBlog();
+		
+		// get the action or none
+		$this->action = $action;
+		// check for action from http if none for constructor
+		if (!$this->action){
+			if (isset($_GET['redbox_action']) && $_GET['redbox_action']!='') 
+				$this->action = $_GET['redbox_action'];
+			elseif (isset($_POST['redbox_action']) && $_POST['redbox_action']!='') 
+				$this->action = $_POST['redbox_action'];
+		}
+		
+		// load redbox tools into the action dispatcher
+		$this->dispatcher = new RedBoxDispatcher($this->admin,$this->user,$this->blog,$this->action);
 	}
 }
 

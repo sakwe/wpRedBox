@@ -3,12 +3,20 @@
  *
  * This PHP class can retrieve base datas from an url ab return a datas objects with : 
  *
+ * - url	: the base url we enter
+ * - source	: the final source used by the class
  * - type	: url/article/picture/video/gallery
- * - human type	: categorised as Links/Articles/Pictures/Short videos/Documentary/Pictures gallery
+ * - category	: categorised as Links/Articles/Pictures/Short videos/Documentary/Pictures gallery
  * - title	: The title of the document
  * - description: Description found in the HTML document 
+ * - message	: From Facebook
+ * - created 	: The datetime of the created post if found or with Facebook API
+ * - origin 	: The main domain of the source (ex: www.scoop.it)
+ * - author 	: from facebook or from a blog meta (author_name, author_url, author_picture object)
  * - pictures	:	- url -> The picture found for the document (can retrieve Facebook galleries, so retrieves all pictures)
- *			- description -> generally empty, it contains the "title" tags of the img if found or the Facebook description
+ *			- description -> generally empty, it contains the "title" tags of the img if found in html or the Facebook description with API
+  *			- width 
+  *			- height
  * - videos_datas	- type -> youtube/daylimotion/vimeo/google/canalplus
  *			- id -> video unique ID for video provider
  *			- title -> video title
@@ -22,6 +30,36 @@
  *			- duration -> duration of the video
 .*
  **/
+
+/* Hard configuration for this class
+ *
+ **/
+define ("MAX_WORDS_FOR_TITLE_GENERATED",7);
+define ("MIN_WORDS_FOR_DESCRIPTION_IN_HTML_TAGS",25);
+define ("NUMBER_OF_PICTURES_IF_SEEKED_IN_HTML",3);
+define ("MIN_WIDTH_OF_PICTURES_IF_SEEKED_IN_HTML",400);
+define ("MAX_SECONDS_FOR_SHORT_VIDEO_CATEGORY",900);
+/*/
+
+
+/* Example for use it width Facebook API capabilites and customised categories
+ *
+ **
+	$categories = array(	'link'=>'Liens',
+				'article'=>'Articles',
+				'picture'=>'Photos',
+				'gallery'=>'Galleries',
+				'video'=>'Video',
+				'short_video'=>'Courtes vidéos',
+				'documentary'=>'Documentaires'
+				);
+	$fb_config = array('primary_id'=>'YOUR_FACEBOOK_ID','app_id'=>'YOUR_FACEBOOK_APP_ID','app_secret'=>'YOUR_FACEBOOK_APP_SECRET')	
+	$dr = new RedboxDataRetriever($categories,$fb_config);	
+	$datas = $dr->get_datas($_GET['url']);
+	
+*****/
+
+//require_once ('/redbox-string-helpers');
 
 // CLASS RedboxDataRetriever
 class RedboxDataRetriever{
@@ -44,17 +82,29 @@ class RedboxDataRetriever{
 		$this->fb_config = $fb_config;
 	}
 
-
-	public function get_datas($url,$datas=null,$quick=false){
-		//first, check if it's a facebook link
-		if ($fb_id=$this->get_facebook_url_id($url)){
-			$datas = $this->get_datas_from_facebook($fb_id,$datas,$quick);
-			$datas->url = $url;
+	public function get_datas($urls,$quick=false){	
+		$this->list_datas = array();
+		$urls = array_reverse($urls);
+		foreach ($urls as $url){
+			$url=trim($url);
+			if ($url!=''){
+				// first, check if it's a direct facebook id for API
+				if (stripos($url,"http")===false){
+					$this->get_datas_from_facebook($url,$quick);
+				}
+				else{		
+					//check if we get a facebook link for API
+					if ($fb_id=$this->get_facebook_url_id($url)){
+						$this->get_datas_from_facebook($fb_id,$quick);
+					}
+					else{
+						$this->get_datas_from_url($url,$quick);
+					}
+				}
+			}
 		}
-		else{
-			$datas = $this->get_datas_from_url($url,$datas);
-		}
-		return $datas;
+		$this->clean_descriptions();
+		return array_reverse($this->list_datas);
 	}
 	
 	private function get_facebook_url_id($url){
@@ -62,14 +112,41 @@ class RedboxDataRetriever{
 		$dns = $parsed['host'];
 		$dns = str_replace('www.','',$dns);
 		if ($dns=="facebook.com"){
-			$fb_id = "";			
+			$fb_id = "";
+			$fb_unique_id = null;
+			$page_id = null;
+			// this look for a common id in the url
+			$tmp_url = explode("?",$url);
+			$args_url = $tmp_url[1];
+			parse_str($args_url,$parsed_url);
+
+			if ($parsed_url['story_fbid'] && $parsed_url['story_fbid']!=''){
+				$fb_unique_id = $parsed_url['story_fbid'];
+			}
+			if ($parsed_url['fbid'] && $parsed_url['fbid']!=''){
+				$fb_unique_id = $parsed_url['fbid'];
+			}
+			if ($parsed_url['set'] && $parsed_url['set']!=''){
+				if ($parts = explode('.',$parsed_url['set'])){
+					$page_id = $parts[(count($parts)-1)];
+				}
+			}
+			if ($parsed_url['id'] && $parsed_url['id']!=''){
+				$page_id = $parsed_url['id'];
+			}
+			// we got an unique id, lets pick the origin id
+			if ($fb_unique_id && $page_id){
+				$fb_id = $fb_unique_id;
+			}
 
 			// this analyse an url for a fb gallery or photo theater 
-			preg_match_all("/.*?(\\d+).*?\\d+.*?[.](\\d+)/is",$url,$matches);
-			$gallery_id=$matches[1][0];
-			$author_id=$matches[2][0];
-			if ($gallery_id>0 && $author_id>0) $fb_id = $gallery_id;
-
+			if ($fb_id==""){
+				preg_match_all("/.*?(\\d+).*?\\d+.*?[.](\\d+)/is",$url,$matches);
+				$gallery_id=$matches[1][0];
+				$author_id=$matches[2][0];
+				if ($gallery_id>0 && $author_id>0) $fb_id = $gallery_id;
+			}
+			
 			if ($fb_id==""){
 				// this analyse an url for a unique id fb
 				$tmp_url = $url;
@@ -88,7 +165,9 @@ class RedboxDataRetriever{
 						break;
 					}
 				}
-				$fb_id = $page_id . "_" . $post_id;
+				
+				$fb_id = $page_id;
+				if($post_id) $fb_id.= "_" . $post_id;
 			}
 			return trim($fb_id);
 		}
@@ -97,15 +176,14 @@ class RedboxDataRetriever{
 		}
 	}
 	
-	private function get_datas_from_facebook($id_fb,$datas=null,$quick=false){
-	
-		// If we don't receive any data, initialise ours
-		if (!$datas){
-			$datas = new RedboxDataContainer();
-			$datas->id_fb = $id_fb;
-			$datas->author_picture = new RedboxPictureDataContainer();
-		}
-
+	private function get_datas_from_facebook($id_fb,$quick=false){
+		$id_fb = trim($id_fb);
+		
+		// instantiate a data container that we will add to the list_data
+		$datas = new RedboxDataContainer();
+		$datas->id_fb = $id_fb;
+		$datas->author_picture = new RedboxPictureDataContainer();
+		
 		// get the data flow from facebook open graph api
 		$authToken = $this->fetchUrl("https://graph.facebook.com/oauth/access_token?grant_type=client_credentials&client_id={$this->fb_config['app_id']}&client_secret={$this->fb_config['app_secret']}");	
 		$json_object = $this->fetchUrl("https://graph.facebook.com/".$id_fb."?{$authToken}");
@@ -115,9 +193,7 @@ class RedboxDataRetriever{
 		$datas->url = "https://www.facebook.com/".$id_fb;
 		$datas->fb_id = $id_fb;
 		$datas->pictures = array();
-		$datas->video_datas = new RedboxVideoDataContainer();
-		$datas->type = $feed_data->type;
-		$datas->category = $this->categories["link"];
+		$datas->video_datas = new RedboxVideoDataContainer();		
 		$datas->message = $feed_data->message;
 		$ts = $feed_data->created_time;
 		$dt = new DateTime($ts);
@@ -136,19 +212,22 @@ class RedboxDataRetriever{
 		$author_data = json_decode($json_object);
 		foreach ($author_data->data as $author_picture){
 			$datas->author_picture = new RedboxPictureDataContainer($author_picture->source);
-			$datas->author_picture->title = "profile";
+			$datas->author_picture->title = $datas->author_name;
 			break;
 		}
 		
-		// if we found a picture gallery, let's pick them !
+		// if we found a picture gallery, let's go !
 		if ($feed_data->cover_photo != ""){
+			// set type and category
 			$datas->type = "gallery";
 			$datas->category = $this->categories["gallery"];
-			$json_object = $this->fetchUrl("https://graph.facebook.com/".$feed_data->cover_photo."?{$authToken}");
+			$json_object = $this->fetchUrl("https://graph.facebook.com/".$feed_data->cover_photo."?{$authToken}");			
 			$cover_data = json_decode($json_object);
+			// Get the cover picture for first picture in our object
 			$datas->pictures[] = new RedboxPictureDataContainer($cover_data->source);
 			$pict_idx = (count($datas->pictures)-1);
 			$datas->pictures[$pict_idx]->title = $cover_data->name;
+			// if we not ask us a quick check, let's pick all the pictures
 			if (!$quick){
 				$json_object = $this->fetchUrl("https://graph.facebook.com/".$id_fb."/photos?fields=images,name&{$authToken}");
 				$gallery_data = json_decode($json_object);
@@ -162,50 +241,73 @@ class RedboxDataRetriever{
 				}
 			}
 		}
+		// it's website link, lets go to complete our datas from the source url 
 		elseif ($feed_data->type == "link"){
 			$datas->type = "article";
 			$datas->category = $this->categories["article"];
 			$datas->source = $feed_data->link;
-			$datas = $this->get_datas_from_url($feed_data->link,$datas);
+			$list_datas = $this->get_datas_from_url($feed_data->link);
 		}
+		// it's video provider link, lets go to complete our datas from the source url 
 		elseif ($feed_data->type == "video"){
 			$datas->source = $feed_data->link;
-			$datas = $this->get_datas_from_url($feed_data->link,$datas);
-		}		
+			$list_datas = $this->get_datas_from_url($feed_data->link);
+		}
+		// it's a facebook picture item, let's pick it
 		elseif ($feed_data->picture != ""){
 			$datas->type = "picture";
 			$datas->category = $this->categories["picture"];
-			$datas->source = $feed_data->source;
-			$datas->pictures[] = new RedboxPictureDataContainer($feed_data->source);
-			$pict_idx = (count($datas->pictures)-1);
-		}		
+			// if we have no source for the picture, recheck API datas from the link
+			if (!$feed_data->source){
+				$list_datas = $this->get_datas_from_facebook($feed_data->object_id,$quick);
+			}
+			else{
+				$datas->source = $feed_data->source;
+				$datas->pictures[] = new RedboxPictureDataContainer($feed_data->source);
+				$pict_idx = (count($datas->pictures)-1);
+			}
+			
+			// if it's a facebook photo, but maybe we have a posted website links into the message ?
+			// let's complete data with it!
+			$an_url = null;
+			preg_match_all('!https?://[\S]+!', $datas->message, $match);
+			foreach ($match[0] as $an_url) {
+				$list_datas = $this->get_datas_from_url($an_url,$quick);
+			}
+		}
+		else{
+			$datas->type = $feed_data->type;
+			$datas->category = $this->categories["link"];
+		}
+		// still no description (from website or video provider, or else?), take what we have
 		if (trim($datas->description)==""){
 			$datas->description = $feed_data->description;
 		}
+		// still no title (from website or video provider, or else?), generate it !
 		if (trim($datas->title)==""){
-			if ($feed_data->message!="") $base = $feed_data->message;
-			if ($base=="") $base = $feed_data->message;
-			if ($base=="") $base = $feed_data->description;
-			preg_match('/^(?>\S+\s*){1,7}/', $feed_data->name, $match);
+			if ($datas->message!="") $base = $datas->message;
+			if ($base=="") $base = $datas->description;
+			preg_match('/^(?>\S+\s*){1,MAX_WORDS_FOR_TITLE_GENERATED}/', $base, $match);
 			$datas->title = $match[0]."...";
 		}
-		if (trim($datas->origin)=="") $datas->origin = "facebook";
+		// still no origin for the source?
+		if (trim($datas->origin)=="") $datas->origin = "www.facebook.com";
 		
+		// feed the list_data and return it
+		$this->list_datas[] = $datas;
 		return $datas;
 	}
 
-	private function get_datas_from_url($url,$datas=null){
+	private function get_datas_from_url($url,$quick=false){
+		
 		// we don't know what is behind the url ..
 		$is_image_url = false;
-
-		// If we don't receive any data, initialise ours
-		if (!$datas){
-			$datas = new RedboxDataContainer();
-			$datas->url = $url;
-			$datas->source = $url;			
-			$datas->author_picture = new RedboxPictureDataContainer();
-		}
 		
+		// instantiate a data container that we will add to the list_data
+		$datas = new RedboxDataContainer();
+		$datas->url = $url;
+		$datas->author_picture = new RedboxPictureDataContainer();
+				
 		// if still no origin, get the origin url
 		if (trim($datas->origin)==""){
 			$parsed =  parse_url($url);
@@ -220,14 +322,12 @@ class RedboxDataRetriever{
 			$is_image_url = true;
 			$datas->type = "picture";
 			$datas->category = $this->categories["picture"];
+			$datas->source = $url;
 		}
 	
 		// if it's not a simple picture, let's go deeper in HTML code exploration
 		if (!$is_image_url){
-			// we consider it's an article from a website
-			$datas->type = "article";
-			$datas->category = $this->categories["article"];
-
+			
 			// get the HTML response from the url (HTML code and DOMdoc)
 			libxml_use_internal_errors(true);
 			$doc = new DomDocument();
@@ -302,7 +402,7 @@ class RedboxDataRetriever{
 					$meta = $metas->item($i);
 					$dimensions = null;
 					$dimensions = getimagesize( $meta->getAttribute('src') );
-					if ($dimensions[0] > 400){						
+					if ($dimensions[0] > MIN_WIDTH_OF_PICTURES_IF_SEEKED_IN_HTML){						
 						$picture_url = $meta->getAttribute('src');
 						$picture_title = $meta->getAttribute('title');
 						// check if it's not a double
@@ -318,7 +418,7 @@ class RedboxDataRetriever{
 							$datas->pictures[] = new RedboxPictureDataContainer($picture_url);
 							$pict_idx = (count($datas->pictures)-1);
 							if ($datas->pictures[$pict_idx]->title)  $datas->pictures[$pict_idx]->title = $picture_title;
-							if ($nb_pict == 3) break;
+							if ($nb_pict == NUMBER_OF_PICTURES_IF_SEEKED_IN_HTML) break;
 						}
 					}
 				}
@@ -347,7 +447,7 @@ class RedboxDataRetriever{
 							}
 						}
 					}
-					if ($datas->video_datas->duration > 900){
+					if ($datas->video_datas->duration > MAX_SECONDS_FOR_SHORT_VIDEO_CATEGORY){
 						$datas->category = $this->categories["documentary"];
 					}
 					else{
@@ -392,18 +492,20 @@ class RedboxDataRetriever{
 						$tmp_description = $meta->getAttribute('content');			 	
 				}
 			}
-			// check in the html content for the first "big" string (more than 20 words)
-			if (trim($tmp_description) ==""){
-				preg_match_all("/<p>(.*)<\/p>/",$html,$matches);
-				foreach($matches as $match){
-					if (array_key_exists(0,$match)){
-						if (str_word_count($match[0]) > 20){
-							$tmp_description = strip_tags($match[0]);
-							break;
-						}
-					}
+			
+			// check in the html content tags for the first "big" string (more than 20 words)
+			$p_tag_description = "";
+			$metas = $doc->getElementsByTagName('p');
+			for ($i = 0; $i < $metas->length; $i++)	{
+				$meta = $metas->item($i);
+				$text = $meta->textContent;
+				if (str_word_count($text) > MIN_WORDS_FOR_DESCRIPTION_IN_HTML_TAGS){
+					$p_tag_description = strip_tags($text);
+					break;
 				}
 			}
+			
+			
 			// if still no description, get the video default description
 			if (trim($datas->video_datas->description)!=""&&trim($tmp_description)==""){
 				$tmp_description = $datas->video_datas->description;
@@ -419,21 +521,41 @@ class RedboxDataRetriever{
 			}
 			
 			// check if we had a description before this function execution (ex: facebook give us his description)
-			if (((strpos($datas->description,$tmp_description)>=0) && (strlen($tmp_description) > strlen($datas->description) )) 
+			if (((stripos($datas->description,$tmp_description)>=0) && (strlen($tmp_description) > strlen($datas->description) )) 
 			|| trim($datas->description) == ""){
 				$datas->description = $tmp_description;
 			}
 			
-			// check if we had a description before this function execution (ex: facebook give us his description)
-			if (((strpos($datas->video_datas->description,$tmp_description)>=0) && (strlen($datas->video_datas->description) > strlen($tmp_description) )) 
+			// check if the video description from provider is the same but better (same first words but more words)
+			if (((stripos($datas->video_datas->description,$tmp_description)>=0) && (strlen($datas->video_datas->description) > strlen($tmp_description) )) 
 			|| trim($datas->description) == ""){
 				$datas->description = $datas->video_datas->description;
 				$datas->video_datas->description="";
 			}
 			
-			// clean video description if it is the same than master description
+			// get description if still none
+			if (trim($datas->description)==''){
+				$datas->description = $tmp_description;
+			}
+			
+			if (((stripos($p_tag_description,$tmp_description)>=0) && (strlen($p_tag_description) > strlen($tmp_description) )) 
+			|| trim($datas->description) == ""){
+				$datas->description = $p_tag_description;
+			}
+			
+			// clean video description if it is the same than master description (no need too much text in datas ;-))
 			if($datas->video_datas->description==$datas->description) 
 				$datas->video_datas->description = "";
+			
+			// get a title if still none
+			if (trim($datas->title)==""){
+				preg_match('/^(?>\S+\s*){1,MAX_WORDS_FOR_TITLE_GENERATED}/', $datas->description, $match);
+				$datas->title = $match[0]."...";
+			}			
+			
+			// clean the title from some basic sites datas
+			$tmp_url = explode("|",$datas->title);
+			$datas->title = $tmp_url[0];
 			
 			// check for author_name in the classic meta data
 			if (trim($datas->author_name) ==""){
@@ -441,7 +563,7 @@ class RedboxDataRetriever{
 				for ($i = 0; $i < $metas->length; $i++)	{
 					$meta = $metas->item($i);
 					if($meta->getAttribute('name') == 'author')
-						$datas->author_name = $meta->getAttribute('content');			 	
+						$datas->author_name = $meta->getAttribute('content');
 				}
 			}
 			
@@ -452,11 +574,22 @@ class RedboxDataRetriever{
 				foreach ($metas as $meta) {
 					if ($meta->getAttribute('property') == "og:site_name"){
 						$datas->author_name = $meta->getAttribute('content');
+						$datas->author_picture->title = $datas->author_name;
 						break;
 					}
 				}
 			}
+			if (trim($datas->author_picture->title) ==""){
+				$datas->author_picture->title = $datas->author_name;
+			}
+			if (trim($datas->video_datas->url) == ''){
+				$datas->type = "article";
+				$datas->category = $this->categories["article"];
+			}
+			$datas->source = $url;
 		}
+		// feed the list_data and return it
+		$this->list_datas[]= $datas;
 		return $datas;
 	}
 
@@ -647,7 +780,8 @@ class RedboxDataRetriever{
 		$tmp_url = explode("?",$embed);
 		$embed = $tmp_url[0];
 		if (trim($embed!=""))	$embed = '<iframe src="'.$embed.'" frameborder="0" allowfullscreen=""></iframe>';
-
+		
+		// feed and return our video container object
 		$video_datas->url = $url;	
 		$video_datas->id = $id;
 		$video_datas->type = $type;
@@ -663,6 +797,34 @@ class RedboxDataRetriever{
 		return $video_datas;
 	}
 
+	private function clean_descriptions(){
+		// first, clean for video description that could be sames
+		for($i=0;$i<count($this->list_datas);$i++){
+			if ($better = $this->get_better_description($this->list_datas[$i]->description,$this->list_datas[$i]->video_datas->description)){
+				$this->list_datas[$i]->description = $better;
+				$this->list_datas[$i]->video_datas->description = "";
+			}
+		}
+		// recheck all principals descriptions 
+		for($i=0;$i<count($this->list_datas);$i++){
+			for($j=0;$j<count($this->list_datas);$j++){
+				if ($better = $this->get_better_description($this->list_datas[$i]->description,$this->list_datas[$j]->description)){
+					$this->list_datas[$i]->description = $better;
+					$this->list_datas[$j]->description = "";
+				}
+			}
+		}
+	}
+	// get the berrer description if they are the sames but one is longer
+	private function get_better_description($description_a,$description_b){
+		if ((stripos($description_a,$description_b)>=0) && (strlen($description_a) > strlen($description_b) )) {
+			return $description_a;
+		}
+		if ((stripos($description_b,$description_a)>=0) && (strlen($description_b) > strlen($description_a) )) {
+			return $description_b;
+		}
+		return null;
+	}
 
 	private function fetchUrl($url){
 		$ch = curl_init();
@@ -682,10 +844,10 @@ class RedboxDataRetriever{
 class RedboxDataContainer{
 	public function __construct(){
 		$this->url = "";
+		$this->fb_id = "";
+		$this->type = "";		
+		$this->category = "";
 		$this->source = "";
-		$this->fb_id = "";		
-		$this->type = "url";
-		$this->category = "link";
 		$this->title = "";
 		$this->origin = "";
 		$this->message = "";
