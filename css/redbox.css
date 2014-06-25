@@ -1,9 +1,12 @@
+
+
 #adminbar-redbox::-webkit-input-placeholder,
 #adminbar-redbox:-moz-placeholder,
 #adminbar-redbox::-moz-placeholder,
 #adminbar-redbox:-ms-input-placeholder {
 	text-shadow: none;
 }
+
 
 #redbox_config_form{
 	max-width:950px;
@@ -21,7 +24,7 @@
 	margin-top:20px;
 }
 
-#redbox_info_fb_config , #redbox_info_fb_import , #redbox_wp_config{
+#redbox_info_fb_config , .redbox_info_fb_import , #redbox_wp_config{
 	border:solid 1px #5A91B1;
 	background-color:#FFFF99;
 	max-width:900px;
@@ -52,20 +55,63 @@
 	height:150px;
 }
 
-#redbox_fb_sync_buttons{
+.redbox_fb_sync_buttons{
 	float:left;
 	clear:both;
+	width:900px;
 }
 
-#redbox_fb_sync_buttons li{
+.redbox_fb_sync_buttons li{
 	float:left !important;
-	width:24.2%;
 	text-align:center;
-	margin-left:5px;
+	margin-left:1%;
+	width:49%;
 }
 
-#redbox_fb_sync_buttons li  a{
-	display:block !important;
+.redbox_fb_sync_buttons li .redbox_button{
+	display:inline-block !important;
+	width:100%;
+}
+
+
+.working_action_box{
+
+}
+
+.working_action_box_content{
+
+}
+
+.working_action_box_message{
+
+}
+
+.working_action_box_loader{
+	text-align:center;
+}
+.working_action_box_loader img{
+	display:inline-block;
+	width:50px;
+	height:auto;
+}
+
+.working_action_box_additional_content{
+	background-color:white !important;
+}
+
+.working_action_bar {
+	width:250px;
+	height:20px;
+	border: #000000 solid 1px;
+	background-color:#E3C574;
+	margin:0px;
+	padding:0px;
+}
+.working_action_barcontent {
+	height:100%;
+	background-color:#B82E21;
+	margin:0px;
+	padding:0px;
 }
 
 #wp-admin-bar-wp-logo {display:none !important;}
@@ -133,12 +179,34 @@
 
 #wpadminbar #adminbarredbox .adminbar-button{display:none}
 
+.data_author{
+	float:right;
+}
+
+.redbox_mini_icon{
+	display:inline-block;
+	vertical-align:middle;
+	padding:0px;
+	margin:0px;
+	margin-bottom:2px;
+	max-height:16px;
+	max-width:16px;
+}
 .redbox_minibox_author{
+	display:inline-block;
+	float:right;
+	clear:right;
+	font-weight:bold;
+	margin:10px 10px 10px 10px;
+}
+
+.redbox_minibox_icon {
 	display:inline-block;
 	float:left;
 	clear:left;
 	font-weight:bold;
-	margin:5px 5px 5px 10px;
+	margin:10px 10px 10px 10px;
+	overflow:hidden;
 }
 
 .redbox_minibox_title {
@@ -154,17 +222,36 @@
 	float:left;
 	clear:none;
 	margin:0px 5px 10px 5px;
-	width:70%;
+	width:65%;
 }
 
 .redbox_minibox_picture img{
 	display:inline-block;
 	float:left;
 	clear:left;
-	width:20%;
+	width:25%;
 	max-width:120px;
+	max-height:150px;
 	height:auto;
 	margin:5px 5px 5px 10px;
+}
+
+.redbox_clear{
+	clear:both;
+}
+
+.redbox_minibox_picture_type{
+	width:100%;
+	text-align:center;
+}
+
+.redbox_minibox_picture_type img{
+	display:inline-block;
+	max-width:320px;
+	max-height:150px;
+	width:100%;
+	height:auto;
+	margin:5px 0px 5px 0px;	
 }
 
 .redbox_minibox_video{
@@ -176,35 +263,792 @@
 
 .redbox_minibox_import{
 	display:inline-block;
-	float:left;
-	clear:both;
+	vertical-align:bottom;
+	float:right;
+	clear:none;
 	margin:5px 5px 5px 10px;
 }
 
 .redbox_proposition_box{
 	float:left;
-	display:inline-block;
+	clear:none;
+	display:table-cell;
 	padding:0px;
-	width:33%;
-	height:180px;
 }
 
 .redbox_proposition_box_content{
-	width:98%;
-	height:98%;
+	display:inline-block;
+	width:100%;
+	height:100%;
 	background-color:#EFEEEE;
-	margin:1%;
+	margin:0px;
 }
 
-#redbox_login{
+.redbox_textarea{
+	width:99%;
+	height:50px;
+	padding-right:-10px;
+	box-shadow:0 0 10px rgba(0, 0, 0, 0.3);
+	border:solid 1px #AFAAB4;
+	margin:0px 0px 10px 0px;
+	-webkit-border-radius: 5px; border-radius: 5px;
+}
+
+.published{
+	background-color:#BFBFBF;
+}
+
+
+/* redbox !colors */
+#redbox-filters a{
+	background: #f2f2f2;
+	color: #888888;
+}
+#redbox-filters a:hover,
+#redbox-filters a.current{
+	color: #ffffff;
+	background: #d31d1d;
+}
+#redbox-filters a span.post-count {
+	color: #ffffff;
+	background: #cccccc;
+}
+#redbox-filters a:hover span.post-count,
+#redbox-filters a.current span.post-count {
+	background: #9e0f0f;
+}
+
+ul#redbox-filters {display: block;width: 100%;margin:0px;padding:10px 0px 30px 0px;}
+#redbox-filters li {display: inline-block; margin: 0px 20px 0px 0px;}
+#redbox-filters a {border-bottom: 0; text-align: center; display: block;padding:10px 0px 10px 10px; }
+#redbox-filters a span.post-count {padding:10px 10px 10px 10px;margin-left:5px;}
+
+table.redbox_import_pannel{
+	max-width:900px;
+	padding-top:50px;
+	border-spacing: 0px;
+	border-collapse: none;
+}
+
+table.redbox_import_pannel tr.main_titles td {
+	text-align:center;
+	font-size:14px;
+	padding:10px;
+}
+
+table.redbox_import_pannel tr.main_titles td.sync {
+	font-weight:bold;
+}
+
+table.redbox_import_pannel td {
+	vertical-align:top;
+	text-align:center;
+	padding:10px;
+}
+
+
+table.redbox_import_pannel td.check{
+	background-color:#ffffff;
+}
+
+table.redbox_import_pannel td.import{
+	background-color:#333333;
+	color:#bbbbbb;
+}
+
+table.redbox_import_pannel td.sync{
+	background-color:#222222;
+	color:#999999;
+}
+
+.meta_box_redbox{
+	padding:10px;
+}
+
+.redbox_waiting_mini {
+	
+}
+
+.meta_box_redbox .redbox_buttons{
+	text-align:right;
+}
+
+.meta_box_redbox .redbox_button {
 	display:inline-block;
-	width:33%;
-	height:420px;
-	float:right;
-	clear:right;
-	margin-right:0px;
+}
+
+.redbox_import_pannel .redbox_button {
+	width:180px;height:50px;
+	display:inline-block;
+}
+
+.redbox_button_box .redbox_button {
+	margin-left:5px !important;
+}
+
+.redbox_button  , .redbox_login #lwa_wp-submit{
+	display: inline-block;
+  *display: inline;
+  padding: 4px 10px 4px;
+  margin-bottom: 0;
+  *margin-left: .3em;
+  font-size: 13px;
+  line-height: 26px;
+  color: #333;
+  text-align: center;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.75);
+  vertical-align: middle;
+  cursor: pointer;
+  background-color: #f5f5f5;
+  *background-color: #e6e6e6;
+  background-image: -ms-linear-gradient(top, #ffffff, #e6e6e6);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ffffff), to(#e6e6e6));
+  background-image: -webkit-linear-gradient(top, #ffffff, #e6e6e6);
+  background-image: -o-linear-gradient(top, #ffffff, #e6e6e6);
+  background-image: linear-gradient(top, #ffffff, #e6e6e6);
+  background-image: -moz-linear-gradient(top, #ffffff, #e6e6e6);
+  background-repeat: repeat-x;
+  border: 1px solid #cccccc;
+  *border: 0;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  border-color: #e6e6e6 #e6e6e6 #bfbfbf;
+  border-bottom-color: #b3b3b3;
+  -webkit-border-radius: 4px;
+     -moz-border-radius: 4px;
+          border-radius: 4px;
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#ffffff', endColorstr='#e6e6e6', GradientType=0);
+  filter: progid:dximagetransform.microsoft.gradient(enabled=false);
+  *zoom: 1;
+  -webkit-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+     -moz-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.redbox_button:hover,
+.redbox_button:active,
+.redbox_button.active,
+.redbox_button.disabled,
+.redbox_button[disabled]  , .redbox_login #lwa_wp-submit:hover , .redbox_login #lwa_wp-submit:active , .redbox_login #lwa_wp-submit[disabled]{
+  background-color: #e6e6e6;
+  *background-color: #d9d9d9;
+}
+
+.redbox_button:active,
+.redbox_button.active  , .redbox_login #lwa_wp-submit:active{
+  background-color: #cccccc \9;
+}
+
+.redbox_button:first-child {
+  *margin-left: 0;
+}
+
+.redbox_button:hover  , .redbox_login #lwa_wp-submit:hover{
+  color: #333333;
+  text-decoration: none;
+  background-color: #e6e6e6;
+  *background-color: #d9d9d9;
+  background-position: 0 -15px;
+  -webkit-transition: background-position 0.1s linear;
+     -moz-transition: background-position 0.1s linear;
+      -ms-transition: background-position 0.1s linear;
+       -o-transition: background-position 0.1s linear;
+          transition: background-position 0.1s linear;
+}
+
+.redbox_button:focus  , .redbox_login #lwa_wp-submit.focus{
+  outline: thin dotted #333;
+  outline: 5px auto -webkit-focus-ring-color;
+  outline-offset: -2px;
+}
+
+.redbox_button.active,
+.redbox_button:active  , .redbox_login #lwa_wp-submit:active{
+  background-color: #e6e6e6;
+  background-color: #d9d9d9 \9;
+  background-image: none;
+  outline: 0;
+  -webkit-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+     -moz-box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+          box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.redbox_button-primary,
+.redbox_button-primary:hover,
+.redbox_button-warning,
+.redbox_button-warning:hover,
+.redbox_button-danger,
+.redbox_button-danger:hover,
+.redbox_button-success,
+.redbox_button-success:hover,
+.redbox_button-info,
+.redbox_button-info:hover,
+.redbox_button-inverse,
+.redbox_button-inverse:hover  , .redbox_login #lwa_wp-submit  , .redbox_login #lwa_wp-submit:hover{
+  color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+}
+
+.redbox_button-primary.active,
+.redbox_button-warning.active,
+.redbox_button-danger.active,
+.redbox_button-success.active,
+.redbox_button-info.active,
+.redbox_button-inverse.active  , .redbox_login #lwa_wp-submit.active{
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.redbox_button  , .redbox_login #lwa_wp-submit{
+  border-color: #ccc;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+}
+
+.redbox_button-primary {
+  background-color: #0074cc;
+  *background-color: #0055cc;
+  background-image: -ms-linear-gradient(top, #0088cc, #0055cc);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#0088cc), to(#0055cc));
+  background-image: -webkit-linear-gradient(top, #0088cc, #0055cc);
+  background-image: -o-linear-gradient(top, #0088cc, #0055cc);
+  background-image: -moz-linear-gradient(top, #0088cc, #0055cc);
+  background-image: linear-gradient(top, #0088cc, #0055cc);
+  background-repeat: repeat-x;
+  border-color: #0055cc #0055cc #003580;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#0088cc', endColorstr='#0055cc', GradientType=0);
+  filter: progid:dximagetransform.microsoft.gradient(enabled=false);
+}
+
+.redbox_button-primary:hover,
+.redbox_button-primary:active,
+.redbox_button-primary.active,
+.redbox_button-primary.disabled,
+.redbox_button-primary[disabled] {
+  background-color: #0055cc;
+  *background-color: #004ab3;
+}
+
+.redbox_button-primary:active,
+.redbox_button-primary.active {
+  background-color: #004099 \9;
+}
+
+.redbox_button-warning {
+  background-color: #faa732;
+  *background-color: #f89406;
+  background-image: -ms-linear-gradient(top, #fbb450, #f89406);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#fbb450), to(#f89406));
+  background-image: -webkit-linear-gradient(top, #fbb450, #f89406);
+  background-image: -o-linear-gradient(top, #fbb450, #f89406);
+  background-image: -moz-linear-gradient(top, #fbb450, #f89406);
+  background-image: linear-gradient(top, #fbb450, #f89406);
+  background-repeat: repeat-x;
+  border-color: #f89406 #f89406 #ad6704;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#fbb450', endColorstr='#f89406', GradientType=0);
+  filter: progid:dximagetransform.microsoft.gradient(enabled=false);
+}
+
+.redbox_button-warning:hover,
+.redbox_button-warning:active,
+.redbox_button-warning.active,
+.redbox_button-warning.disabled,
+.redbox_button-warning[disabled] {
+  background-color: #f89406;
+  *background-color: #df8505;
+}
+
+.redbox_button-warning:active,
+.redbox_button-warning.active {
+  background-color: #c67605 \9;
+}
+
+.redbox_button-danger {
+  background-color: #da4f49;
+  *background-color: #bd362f;
+  background-image: -ms-linear-gradient(top, #ee5f5b, #bd362f);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ee5f5b), to(#bd362f));
+  background-image: -webkit-linear-gradient(top, #ee5f5b, #bd362f);
+  background-image: -o-linear-gradient(top, #ee5f5b, #bd362f);
+  background-image: -moz-linear-gradient(top, #ee5f5b, #bd362f);
+  background-image: linear-gradient(top, #ee5f5b, #bd362f);
+  background-repeat: repeat-x;
+  border-color: #bd362f #bd362f #802420;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#ee5f5b', endColorstr='#bd362f', GradientType=0);
+  filter: progid:dximagetransform.microsoft.gradient(enabled=false);
+}
+
+.redbox_button-danger:hover,
+.redbox_button-danger:active,
+.redbox_button-danger.active,
+.redbox_button-danger.disabled,
+.redbox_button-danger[disabled] {
+  background-color: #bd362f;
+  *background-color: #a9302a;
+}
+
+.redbox_button-danger:active,
+.redbox_button-danger.active {
+  background-color: #942a25 \9;
+}
+
+.redbox_button-success {
+  background-color: #5bb75b;
+  *background-color: #51a351;
+  background-image: -ms-linear-gradient(top, #62c462, #51a351);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#62c462), to(#51a351));
+  background-image: -webkit-linear-gradient(top, #62c462, #51a351);
+  background-image: -o-linear-gradient(top, #62c462, #51a351);
+  background-image: -moz-linear-gradient(top, #62c462, #51a351);
+  background-image: linear-gradient(top, #62c462, #51a351);
+  background-repeat: repeat-x;
+  border-color: #51a351 #51a351 #387038;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#62c462', endColorstr='#51a351', GradientType=0);
+  filter: progid:dximagetransform.microsoft.gradient(enabled=false);
+}
+
+.redbox_button-success:hover,
+.redbox_button-success:active,
+.redbox_button-success.active,
+.redbox_button-success.disabled,
+.redbox_button-success[disabled] {
+  background-color: #51a351;
+  *background-color: #499249;
+}
+
+.redbox_button-success:active,
+.redbox_button-success.active {
+  background-color: #408140 \9;
+}
+
+.redbox_button-info , .redbox_login #lwa_wp-submit {
+  background-color: #49afcd;
+  *background-color: #2f96b4;
+  background-image: -ms-linear-gradient(top, #5bc0de, #2f96b4);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#5bc0de), to(#2f96b4));
+  background-image: -webkit-linear-gradient(top, #5bc0de, #2f96b4);
+  background-image: -o-linear-gradient(top, #5bc0de, #2f96b4);
+  background-image: -moz-linear-gradient(top, #5bc0de, #2f96b4);
+  background-image: linear-gradient(top, #5bc0de, #2f96b4);
+  background-repeat: repeat-x;
+  border-color: #2f96b4 #2f96b4 #1f6377;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#5bc0de', endColorstr='#2f96b4', GradientType=0);
+  filter: progid:dximagetransform.microsoft.gradient(enabled=false);
+}
+
+.redbox_button-info:hover,
+.redbox_button-info:active,
+.redbox_button-info.active,
+.redbox_button-info.disabled,
+.redbox_button-info[disabled]  , .redbox_login #lwa_wp-submit:hover , .redbox_login #lwa_wp-submit:active , .redbox_login #lwa_wp-submit[disabled]{
+  background-color: #2f96b4;
+  *background-color: #2a85a0;
+}
+
+.redbox_button-info:active,
+.redbox_button-info.active , .redbox_login #lwa_wp-submit:active {
+  background-color: #24748c \9;
+}
+
+.redbox_button-inverse {
+  background-color: #414141;
+  *background-color: #222222;
+  background-image: -ms-linear-gradient(top, #555555, #222222);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#555555), to(#222222));
+  background-image: -webkit-linear-gradient(top, #555555, #222222);
+  background-image: -o-linear-gradient(top, #555555, #222222);
+  background-image: -moz-linear-gradient(top, #555555, #222222);
+  background-image: linear-gradient(top, #555555, #222222);
+  background-repeat: repeat-x;
+  border-color: #222222 #222222 #000000;
+  border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+  filter: progid:dximagetransform.microsoft.gradient(startColorstr='#555555', endColorstr='#222222', GradientType=0);
+  filter: progid:dximagetransform.microsoft.gradient(enabled=false);
+}
+
+.redbox_button-inverse:hover,
+.redbox_button-inverse:active,
+.redbox_button-inverse.active,
+.redbox_button-inverse.disabled,
+.redbox_button-inverse[disabled] {
+  background-color: #222222;
+  *background-color: #151515;
+}
+
+.redbox_button-inverse:active,
+.redbox_button-inverse.active {
+  background-color: #080808 \9;
+}
+
+button.redbox_button,
+input[type="submit"].redbox_button {
+  *padding-top: 2px;
+  *padding-bottom: 2px;
+}
+
+button {
+  cursor: pointer;
+  -webkit-appearance: button;
+}
+
+button.redbox_button::-moz-focus-inner {
+  padding: 0;
+  border: 0;
+}
+
+.redbox_human_link{
+	vertical-align:middle;
+}
+
+.redbox_human_link img{
+	display:inline-block;
+	vertical-align:middle;
+	padding:0px;
+	margin:0px;
+	margin-bottom:2px;
+	margin-right:5px;
+	max-height:16px;
+	max-width:16px;
 }
 
 #respond{
 	margin-bottom:0;
 }
+
+.redbox_item{
+	margin-bottom:20px;
+}
+
+.redbox_item .portfolio-item-info{
+	text-align:justify !important;
+}
+
+.widget_loginwithajaxwidget a {
+    text-transform: capitalize;
+}
+
+.wp_rp_wrap{
+padding-top:40px;
+}
+
+.wp_rp_wrap{
+	border-color:#97CE46;
+}
+
+.jaw_widget li ul li{
+	margin-left:10px;
+}
+
+.comments-wrapper{
+padding-top:40px;
+}
+
+.sidebar-inner h3, .sidebar-inner h4, .sidebar-inner h5, .wp_rp_wrap h5, .comments-wrapper h5{
+	width:100%;
+	border-color:#97CE46;
+}
+
+.sidebar-inner .widget{
+	background-color:#EEEEEC;
+	margin:0px;
+	padding:10px;
+	margin-bottom:20px;
+	overflow:hidden;
+}
+
+.jcl_symbol span{
+	color:#97CE46;
+}
+
+.redbox-titlebox {
+	padding:0px;
+	padding:0px;
+	margin-bottom:-7px;
+}
+
+.redbox-titlebox.anim {
+  background-color: #666;
+  background-image: -o-linear-gradient(135deg, rgba(255, 255, 255, 0.10) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.10) 50%, rgba(255, 255, 255, 0.10) 75%, transparent 75%, transparent);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.10) 50%, rgba(255, 255, 255, 0.10) 75%, transparent 75%, transparent);  
+  background-image: -webkit-gradient(linear, left top, right bottom, color-stop(0.25, rgba(255, 255, 255, 0.10)), color-stop(0.25, transparent), color-stop(0.5, transparent), color-stop(0.5, rgba(255, 255, 255, 0.05)), color-stop(0.75, rgba(255, 255, 255, 0.10)), color-stop(0.75, transparent), to(transparent));
+  background-image: -webkit-linear-gradient(135deg, rgba(255, 255, 255, 0.10) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.10) 50%, rgba(255, 255, 255, 0.10) 75%, transparent 75%, transparent);
+  background-image: -moz-linear-gradient(135deg, rgba(255, 255, 255, 0.10) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.10) 50%, rgba(255, 255, 255, 0.10) 75%, transparent 75%, transparent);
+  background-image: -ms-linear-gradient(135deg, rgba(255, 255, 255, 0.10) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.10) 50%, rgba(255, 255, 255, 0.10) 75%, transparent 75%, transparent);
+  -webkit-background-size: 40px 40px;
+     -moz-background-size: 40px 40px;
+          background-size: 40px 40px;
+  -webkit-box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+     -moz-box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+          box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+  -webkit-animation: animate-bg 5s linear infinite;
+     -moz-animation: animate-bg 5s linear infinite;
+}
+
+.redbox-titlebox.anim.info {
+  background-color: #7D9AC4;
+}
+
+.redbox-titlebox.anim.error {
+  background-color: #de4343;
+}
+
+.redbox-titlebox.anim.warning {
+  background-color: #E1B66E;
+}
+
+.redbox-titlebox.anim.success {
+  background-color: #84BC5B;
+}
+
+#redbox_scroller {
+        max-height:250px;
+        padding:10px;
+        overflow:auto;
+}
+
+.redbox_carousel .elastislide-wrapper{
+	background-color:#444444 !important;
+	border:none;
+	box-shadow:none;
+}
+
+.redbox_carousel .elastislide-carousel ul li a img{
+	border:none;
+}
+
+.redbox_carousel ul{
+	border:none;
+	width:100%;
+}
+
+.redbox_carousel ul li{
+	text-align:center;
+}
+
+.redbox_carousel ul li a img{
+	height:250px;
+	width:100%;
+}
+
+.data_content{
+	color:#FFF;
+	margin:0px;
+	padding:10px;
+	background-color:#444 !important;
+}
+
+.data_category {
+	margin:10px;
+}
+
+.data_title {
+	margin:0px;
+}
+
+.data_author {
+	margin-bottom:10px;
+}
+
+.data_message {
+	margin:10px;
+}
+
+.data_date {
+	margin:10px;
+}
+
+.data_description {
+	margin:10px;
+}
+
+
+.data_thumb {
+	margin:10px;
+	text-align:center;
+}
+
+.data_thumb img {
+	max-width:100px !important;
+	max-height:60px !important;
+}
+
+.data_thumb_dim {
+	text-align:center;
+	font-size:10px;
+}
+
+
+.data_author_thumb {
+	display:inline-block;
+	vertical-align:middle;
+	margin-left:10px;
+}
+
+.data_author_thumb img {
+	max-width:30px !important;
+	max-height:30px !important;
+
+}
+
+.redbox_login{
+	clear:none;
+	display:table-cell;
+	padding:0px;
+}
+
+.redbox_login .widget_loginwithajaxwidget , .redbox_login .widget_shortcode{
+	padding:0px 0px 0px 0px !important;
+	margin:0px 0px 0px 0px !important;
+	width:100%;
+	height:100%;
+	margin:0px;
+}
+
+.redbox_login .lwa-form{
+	padding:15px 0px 10px 10px !important;
+}
+
+.redbox_login .lwa-form:hover{
+	background-color: #EEEEEE;
+  background-image: -o-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  background-image: -webkit-gradient(linear, left top, right bottom, color-stop(0.25, rgba(255, 255, 255, 0.05)), color-stop(0.25, transparent), color-stop(0.5, transparent), color-stop(0.5, rgba(255, 255, 255, 0.05)), color-stop(0.75, rgba(255, 255, 255, 0.05)), color-stop(0.75, transparent), to(transparent));
+  background-image: -webkit-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  background-image: -moz-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  background-image: -ms-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  -webkit-background-size: 40px 40px;
+     -moz-background-size: 40px 40px;
+          background-size: 40px 40px;
+  -webkit-box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+     -moz-box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+          box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+  -webkit-animation: animate-bg 5s linear infinite;
+     -moz-animation: animate-bg 5s linear infinite;
+}
+
+.redbox_login .widget_loginwithajaxwidget h2 .lwa-title{
+	font-size:15px !important;
+	margin:5px 0px 0px 10px !important;
+}
+
+.redbox_login .widget_loginwithajaxwidget h2 {
+	padding:0px 0px 0px 0px !important;
+	margin:0px 0px 0px 0px !important;
+	display:inline-block;
+	vertical-align:middle;
+	width:100%;
+	height:40px;
+	background-color: #666;
+  background-image: -o-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  background-image: -webkit-gradient(linear, left top, right bottom, color-stop(0.25, rgba(255, 255, 255, 0.05)), color-stop(0.25, transparent), color-stop(0.5, transparent), color-stop(0.5, rgba(255, 255, 255, 0.05)), color-stop(0.75, rgba(255, 255, 255, 0.05)), color-stop(0.75, transparent), to(transparent));
+  background-image: -webkit-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  background-image: -moz-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  background-image: -ms-linear-gradient(135deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.05) 75%, transparent 75%, transparent);
+  -webkit-background-size: 40px 40px;
+     -moz-background-size: 40px 40px;
+          background-size: 40px 40px;
+  -webkit-box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+     -moz-box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+          box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+  -webkit-animation: animate-bg 5s linear infinite;
+     -moz-animation: animate-bg 5s linear infinite;
+}
+
+
+.redbox_login .widget_loginwithajaxwidget .lwa-username,
+.redbox_login .widget_loginwithajaxwidget .lwa-password,
+.redbox_login .widget_loginwithajaxwidget .lwa-submit{
+	margin-bottom:10px !important;
+	display:inline-block !important;
+	width:100%;
+	float:left;
+	clear:both;
+}
+
+.redbox_login .widget_loginwithajaxwidget .lwa-username label,
+.redbox_login .widget_loginwithajaxwidget .lwa-password label{	
+	display:inline-block !important;
+	float:left;
+	clear:left;
+	width:33%;
+	vertical-align:middle;
+	text-align:left;
+	border:none;
+}
+
+.redbox_login .widget_loginwithajaxwidget .lwa-submit-button{
+	display:inline-block !important;
+	float:right;
+	clear:right;
+	width:33%;
+	vertical-align:middle;
+	text-align:left;
+	border:none;
+}
+
+.redbox_login .widget_loginwithajaxwidget .lwa-submit-links {
+	display:inline-block !important;
+	float:left;
+	clear:left;
+	width:60%;
+}
+
+.redbox_login .widget_loginwithajaxwidget #lwa_user_login,
+.redbox_login .widget_loginwithajaxwidget #lwa_user_pass{
+	display:inline-block !important;
+	float:left;
+	clear:right;
+	width:60%;
+	height:25px;
+	box-shadow:0 0 10px rgba(0, 0, 0, 0.3);
+	border:solid 1px #AFAAB4;
+	margin:0px 0px 0px 0px !important;
+	-webkit-border-radius: 5px; border-radius: 5px;
+}
+
+.redbox_login .widget_loginwithajaxwidget td{
+	border:none;
+}
+
+.redbox_login .widget_loginwithajaxwidget .lwa-username-label,
+.redbox_login .widget_loginwithajaxwidget .lwa-password-label{
+	display:inline-block !important;
+	width:33%;
+	text-align:left !important;
+}
+
+.redbox_login .widget_loginwithajaxwidget .lwa-username-input ,
+.redbox_login .widget_loginwithajaxwidget .lwa-password-input  {
+	display:inline-block !important;
+	width:63%;
+	text-align:right !important;
+}
+
+.redbox_login .widget_loginwithajaxwidget .lwa-username-input input,
+.redbox_login .widget_loginwithajaxwidget .lwa-password-input input {
+	height:25px;
+	box-shadow:0 0 10px rgba(0, 0, 0, 0.3);
+	border:solid 1px #AFAAB4;
+	margin:0px 0px 0px 0px !important;
+	-webkit-border-radius: 5px; border-radius: 5px;
+}
+
+.redbox_login .lwa-login-form{
+	clear:both;
+}
+
+.redbox_login .lwa-submit-button{
+	
+}
+
+.redbox_login #lwa_wp-submit{
+	margin:0px;
+	padding:5px 10px 10px 10px;
+	height:30px !important;
+}
+
+
+

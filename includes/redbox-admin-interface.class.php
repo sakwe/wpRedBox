@@ -6,20 +6,21 @@
 
 class RedBoxAdmin{
 
-	public function __construct(){
-		add_action('admin_init', array(__CLASS__, "plugin_init"));
-		add_action('admin_menu', array(__CLASS__, "setup_menus"));
+	public function __construct(&$redbox){
+		// connect to the global redbox instance
+		$this->redbox = $redbox;
+
+		add_action('admin_init', array(&$this, "plugin_init"));
+		add_action('admin_menu', array(&$this, "setup_menus"));
 	}
 	
 	public function plugin_init(){
-
+	
 		// register and configurate admin sections for the interface
 		register_setting( 'redbox_options', 'redbox_options', array(__CLASS__, "validate_fields"));			
-		add_settings_section('redbox_wordpress_options', '<hr />'.REDBOX_CONFIGURATION, array(__CLASS__, "redbox_wordpress_options"), 'redbox');
-		add_settings_section('redbox_facebook_option', '<hr />'.REDBOX_CONFIGURATION_FACEBOOK, array(__CLASS__, "redbox_facebook_options"), 'redbox');
-		add_settings_section('redbox_import_status', '<hr />'.REDBOX_IMPORT_FROM_FACEBOOK, array(__CLASS__, "redbox_import_buttons"), 'redbox');
-		add_settings_field('redbox_import_selections_field', '<hr />'.REDBOX_IMPORT_RESULTS, array(__CLASS__, "redbox_import_status"), 'redbox', 'redbox_import_status');
-	
+		add_settings_section('redbox_wordpress_options', '<hr />'.REDBOX_CONFIGURATION, array(&$this, "redbox_wordpress_options"), 'redbox');
+		add_settings_section('redbox_facebook_option', '<hr />'.REDBOX_CONFIGURATION_FACEBOOK, array(&$this, "redbox_facebook_options"), 'redbox');
+			
 		// initialise RedBox Sync Table
 		global $wpdb;
 		$table_name = $wpdb->prefix . "redbox_fb"; 
@@ -27,6 +28,8 @@ class RedBoxAdmin{
 		  id mediumint(9) NOT NULL AUTO_INCREMENT,
 		  date datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
 		  id_fb text NOT NULL,
+		  type text ,
+		  status text ,
 		  UNIQUE KEY id (id)
 		);";
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
@@ -34,24 +37,32 @@ class RedBoxAdmin{
 	}
 
 	public function setup_menus() {
-		add_options_page('RedBox', 'RedBox config', 'manage_options', 'redbox', array(__CLASS__, "plugin_options"));		
+		add_options_page('RedBox', 'RedBox config', 'manage_options', 'redbox', array(&$this, "plugin_options"));
 	}
 	
 	public function validate_fields() {
-				
+		global $wpdb;
+		$id=0;
+		$sql = 'SELECT ID FROM ' . $wpdb->prefix .'posts WHERE post_name="'.trim($_POST['redbox_page_name']).'"';
+		if ($rows = $wpdb->get_results($sql)){
+			$id=$rows[0]->ID;
+		}
 		return array(
 			"facebook_id" => $_POST['redbox_profile_field'],
+			"facebook_ids" => $_POST['redbox_pages_ids_field'],
 			"facebook_app_id" => $_POST['facebook_appid_field'],
 			"facebook_app_secret" => $_POST['facebook_appsecret_field'],
 			"facebook_tags_for_posts" => $_POST['facebook_tags_field'],
-			"redbox_page_name" => $_POST['redbox_page_name']
+			"redbox_page_name" => $_POST['redbox_page_name'],
+			"redbox_page_id" => $id,
+			"facebook_import_date" => $_POST['facebook_import_date']
 		);
 	}
 	
 	public function plugin_options() {
 		?>
 		<div class="wrap">
-			<div id="icon-edit" class="icon32">
+			<div id="icon-redbox" class="icon32">
 				<br>
 			</div>
 			<h2>RedBox</h2>
@@ -59,18 +70,18 @@ class RedBoxAdmin{
 				<div id="redbox_info_config">
 				<?php echo REDBOX_INFO_CONFIG ; ?>
 				</div>
-				<p><input name="Submit" type="submit" class="facebookGallerySubmit" value="<?php esc_attr_e('Save Changes'); ?>" /></p>
+				<p><input name="Submit" type="submit" value="<?php esc_attr_e('Save Changes'); ?>" /></p>
 				<?php settings_fields('redbox_options'); ?>
 				<?php do_settings_sections('redbox'); ?>
-				<p><input name="Submit" type="submit" class="facebookGallerySubmit" value="<?php esc_attr_e('Save Changes'); ?>" /></p>
+				<p><input name="Submit" type="submit" value="<?php esc_attr_e('Save Changes'); ?>" /></p>
 			</form>
 		</div>
 		<?php
 	}
 	
 	public function redbox_wordpress_options() {
-		echo "<div class=\"wrap\"><div id=\"redbox_wp_config\"><p>".REDBOX_CONFIGURE_BLOG_TITLE."</p></div>";
 		$options = get_option('redbox_options');
+		echo "<div class=\"wrap\"><div id=\"redbox_wp_config\"><p>".REDBOX_CONFIGURE_BLOG_TITLE."</p></div>";		
 		echo '<ul id="redbox_wordpress_options">';
 		echo '<li><span>'.REDBOX_BLOG_PAGE_NAME.' : </span>
 			<input type="text" name="redbox_page_name" id="profileIDBox" value="'.$options['redbox_page_name'].'" />
@@ -79,12 +90,14 @@ class RedBoxAdmin{
 			<textarea name="facebook_tags_field" id="profileTagsBox">'.$options['facebook_tags_for_posts'].'</textarea>
 			</li>';
 		echo '</ul></div>';
-		
+		if ($options['redbox_page_id']==0 && trim($options['redbox_page_name'])!='' ) {
+			echo $this->redbox->dispatcher->dialogBox(REDBOX_ERROR_PAGE_NOT_EXIST,REDBOX_ERROR_CONFIGURATION,"warning");
+		}
 	}
 
-	function redbox_facebook_options() {
-		echo "<div class=\"wrap\"><div id=\"redbox_info_fb_config\">".REDBOX_FACEBOOK_CONFIG_HELP."</div>";
+	public function redbox_facebook_options() {
 		$options = get_option('redbox_options');
+		echo "<div class=\"wrap\"><div id=\"redbox_info_fb_config\">".REDBOX_FACEBOOK_CONFIG_HELP."</div>";
 		echo '<ul id="redbox_facebook_options">';
 		echo '<li><span>'.REDBOX_FACEBOOK_ID_LABEL.' : </span>';
 		echo '<input type="text" name="redbox_profile_field" id="redbox_profile_field" value="'.$options['facebook_id'].'" /></li>';
@@ -92,35 +105,11 @@ class RedBoxAdmin{
 		echo '<input type="text" name="facebook_appid_field" id="facebook_appid_field" value="'.$options['facebook_app_id'].'" /></li>';
 		echo '<li><span>'.REDBOX_FACEBOOK_SECRET_LABEL.' : </span>';
 		echo '<input type="text" name="facebook_appsecret_field" id="facebook_appsecret_field" value="'.$options['facebook_app_secret'].'" /></li>';
-		echo '</ul></div>';	
-		return true;
-	}
-	
-	function redbox_import_status() {
-		global $wpdb;		
-		global $importInfo,$posts_id;
-		
-		if ($rows = $wpdb->get_results('SELECT * FROM ' . $wpdb->prefix .'redbox_fb')){
-			$return.= count($rows)." ".REDBOX_FACEBOOK_TMP;
-		}
-		$return.="<br />";
-		$wp_posts_ids = get_wp_posts_array();
-		$return.= count($wp_posts_ids)." ".REDBOX_FACEBOOK_INWP;
-		$return.="<br />";
-		echo $return;
-		if ($importInfo!="") echo "<br />".$importInfo."<br /><br />";
-		if (count($posts_id) > 0 ) display_posts($posts_id);
-	}
-
-	function redbox_import_buttons() {		
-		$base_url = site_url().'/wp-admin/options-general.php?page=redbox&action=';
-		echo '<div class=\"wrap\"><ul id="redbox_fb_sync_buttons">
-		<li><a href="'.$base_url.'check" class="button" >'.REDBOX_CHECK_FACEBOOK.'</a></li>
-		<li><a href="'.$base_url.'action=check_forced" class="button" >'.REDBOX_CHECK_FACEBOOK_FORCED.'</a></li>
-		<li><a href="'.$base_url.'import" class="button" >'.REDBOX_IMPORT_FACEBOOK_NEEDED.'</a></li>
-		<li><a href="'.$base_url.'import_forced" class="button" >'.REDBOX_IMPORT_FACEBOOK_FORCED.'</a></li>
-		</ul>';
-		echo "<div id=\"redbox_info_fb_import\">".REDBOX_IMPORT_BUTTON_HELP."</div></div>";
+		echo '<li><span>'.REDBOX_FACEBOOK_IMPORT_DATE.' : </span>';
+		echo '<input type="text" name="facebook_import_date" id="facebook_import_date" value="'.$options['facebook_import_date'].'" /></li>';
+		echo '<li><span>'.REDBOX_FACEBOOK_PAGES_IDS.' : </span>';
+		echo '<input type="text" name="redbox_pages_ids_field" id="redbox_pages_ids_field" value="'.$options['facebook_ids'].'" /></li>';
+		echo '</ul></div>';
 		return true;
 	}
 }

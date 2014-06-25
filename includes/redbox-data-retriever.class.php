@@ -1,7 +1,9 @@
 <?
+//require 'facebook/facebook.php';
+
 /* The RedboxDataRetriever class
  *
- * This PHP class can retrieve base datas from an url ab return a datas objects with : 
+ * This PHP class can retrieve base datas from an url and return a datas array objects with : 
  *
  * - url	: the base url we enter
  * - source	: the final source used by the class
@@ -15,8 +17,8 @@
  * - author 	: from facebook or from a blog meta (author_name, author_url, author_picture object)
  * - pictures	:	- url -> The picture found for the document (can retrieve Facebook galleries, so retrieves all pictures)
  *			- description -> generally empty, it contains the "title" tags of the img if found in html or the Facebook description with API
-  *			- width 
-  *			- height
+ *			- width 
+ *			- height
  * - videos_datas	- type -> youtube/daylimotion/vimeo/google/canalplus
  *			- id -> video unique ID for video provider
  *			- title -> video title
@@ -31,13 +33,17 @@
 .*
  **/
 
+
 /* Hard configuration for this class
  *
  **/
-define ("MAX_WORDS_FOR_TITLE_GENERATED",7);
+define ("MAX_REDIR",3);
+define ("MAX_WORDS_FOR_TITLE_GENERATED",8);
 define ("MIN_WORDS_FOR_DESCRIPTION_IN_HTML_TAGS",25);
 define ("NUMBER_OF_PICTURES_IF_SEEKED_IN_HTML",3);
-define ("MIN_WIDTH_OF_PICTURES_IF_SEEKED_IN_HTML",400);
+define ("NUMBER_OF_PICTURES_IF_SEEKED_IN_HTML_FOR_GALLERIES",25);
+define ("MIN_WIDTH_OF_PICTURES_IF_SEEKED_IN_HTML",160);
+define ("MIN_HEIGHT_OF_PICTURES_IF_SEEKED_IN_HTML",160);
 define ("MAX_SECONDS_FOR_SHORT_VIDEO_CATEGORY",900);
 /*/
 
@@ -49,7 +55,7 @@ define ("MAX_SECONDS_FOR_SHORT_VIDEO_CATEGORY",900);
 				'article'=>'Articles',
 				'picture'=>'Photos',
 				'gallery'=>'Galleries',
-				'video'=>'Video',
+				'video'=>'Vidéos',
 				'short_video'=>'Courtes vidéos',
 				'documentary'=>'Documentaires'
 				);
@@ -59,14 +65,17 @@ define ("MAX_SECONDS_FOR_SHORT_VIDEO_CATEGORY",900);
 	
 *****/
 
-//require_once ('/redbox-string-helpers');
 
 // CLASS RedboxDataRetriever
 class RedboxDataRetriever{
 
 	public $categories,$fb_config;
 
-	public function __construct($categories=null,$fb_config=null){
+	public function __construct($categories=null,$fb_config=null,&$redbox=null){
+		// connect to the global redbox instance
+		$this->redbox = $redbox;
+
+		// default configuration for types/categories
 		if ($categories==null) {
 			$categories = array(	'link'=>'Links',
 						'article'=>'Articles',
@@ -80,9 +89,28 @@ class RedboxDataRetriever{
 		$this->categories = $categories;
 		$this->fb_config = array();
 		$this->fb_config = $fb_config;
+		$this->contentType = "utf8";
+		$this->redbox->fallBack=false;
 	}
 
-	public function get_datas($urls,$quick=false){	
+	public function get_datas($fetched,$quick=false){
+		$urls = $fetched;
+		// if we have a string with urls, make an array with it
+		$message=null;
+		if (!is_array($urls)){
+			$tmp_message = $urls;
+			preg_match_all('!https?://[\S]+!', $urls, $match);
+			$urls=$match[0];
+			foreach($urls as $url){
+				$tmp_message = str_replace($url,'',$tmp_message);
+			}
+			if (trim($tmp_message)!='') $message = $tmp_message;
+		}
+		if (count($urls)==0){
+			$urls[]= $fetched;
+			$message = null;
+		}
+		// get datas for all urls
 		$this->list_datas = array();
 		$urls = array_reverse($urls);
 		foreach ($urls as $url){
@@ -103,10 +131,18 @@ class RedboxDataRetriever{
 				}
 			}
 		}
+		// clean descriptions (get the bests)
 		$this->clean_descriptions();
+		// reorder pictures by width (higher first)
+		$this->reorder_pictures();
+		// add the message if we have it
+		if(count($this->list_datas)>0 && $message){
+			$this->list_datas[0]->message = $message ."\n". $this->list_datas[0]->message;
+		}
 		return array_reverse($this->list_datas);
 	}
 	
+	// get facebook ids from the url
 	private function get_facebook_url_id($url){
 		$parsed =  parse_url($url);
 		$dns = $parsed['host'];
@@ -176,18 +212,22 @@ class RedboxDataRetriever{
 		}
 	}
 	
+	// get datas from facebook api with our ids
 	private function get_datas_from_facebook($id_fb,$quick=false){
 		$id_fb = trim($id_fb);
 		
 		// instantiate a data container that we will add to the list_data
 		$datas = new RedboxDataContainer();
-		$datas->id_fb = $id_fb;
 		$datas->author_picture = new RedboxPictureDataContainer();
 		
 		// get the data flow from facebook open graph api
 		$authToken = $this->fetchUrl("https://graph.facebook.com/oauth/access_token?grant_type=client_credentials&client_id={$this->fb_config['app_id']}&client_secret={$this->fb_config['app_secret']}");	
 		$json_object = $this->fetchUrl("https://graph.facebook.com/".$id_fb."?{$authToken}");
 		$feed_data = json_decode($json_object);
+
+		if ($feed_data->type=='status'){
+			return false;
+		}
 
 		// set basic datas
 		$datas->url = "https://www.facebook.com/".$id_fb;
@@ -204,23 +244,33 @@ class RedboxDataRetriever{
 		else{
 			$datas->title = $feed_data->name;
 		}
+		
 		$this->fb_id_author = $feed_data->from->id;
 		$datas->author_name = $feed_data->from->name;
 		$datas->author_url = "https://www.facebook.com/".$feed_data->from->id;
 
-		$json_object = $this->fetchUrl("https://graph.facebook.com/".$feed_data->from->id."/photos?fields=source&{$authToken}");
+		$json_object = $this->fetchUrl("https://graph.facebook.com/".$feed_data->from->id."/photos?fields=source,images&{$authToken}");
 		$author_data = json_decode($json_object);
-		foreach ($author_data->data as $author_picture){
-			$datas->author_picture = new RedboxPictureDataContainer($author_picture->source);
-			$datas->author_picture->title = $datas->author_name;
-			break;
+		if ($author_data->data){
+			//$author_data->data = array_reverse($author_data->data);
+			foreach ($author_data->data as $author_picture){
+				$author_picture->images = array_reverse($author_picture->images);
+				foreach ($author_picture->images as $author_image){
+					$datas->author_picture = new RedboxPictureDataContainer($author_image->source);
+					$datas->author_picture->title = $datas->author_name;
+					break;
+				}
+				break;
+			}
 		}
-		
 		// if we found a picture gallery, let's go !
-		if ($feed_data->cover_photo != ""){
+		if ($feed_data->cover_photo){
 			// set type and category
-			$datas->type = "gallery";
-			$datas->category = $this->categories["gallery"];
+			$datas->type = "picture";
+			$datas->category = $this->categories["picture"];
+			$datas->title = $feed_data->name;
+			$datas->message = $feed_data->description;
+			$datas->description = '';
 			$json_object = $this->fetchUrl("https://graph.facebook.com/".$feed_data->cover_photo."?{$authToken}");			
 			$cover_data = json_decode($json_object);
 			// Get the cover picture for first picture in our object
@@ -229,29 +279,75 @@ class RedboxDataRetriever{
 			$datas->pictures[$pict_idx]->title = $cover_data->name;
 			// if we not ask us a quick check, let's pick all the pictures
 			if (!$quick){
-				$json_object = $this->fetchUrl("https://graph.facebook.com/".$id_fb."/photos?fields=images,name&{$authToken}");
-				$gallery_data = json_decode($json_object);
-				foreach ($gallery_data->data as $pictures_data){
-					foreach ($pictures_data->images as $picture_data){
-						$datas->pictures[] = new RedboxPictureDataContainer($picture_data->source);
-						$pict_idx = (count($datas->pictures)-1);
-						$datas->pictures[$pict_idx]->title=$pictures_data->name;
-						break;
+				$url = "https://graph.facebook.com/".$id_fb."/photos?fields=images,name&{$authToken}";
+				while($url){
+					$json_object = $this->redbox->retriever->fetchUrl($url);
+					$gallery_data = json_decode($json_object);
+					foreach ($gallery_data->data as $pictures_data){
+						foreach ($pictures_data->images as $picture_data){
+							$datas->pictures[] = new RedboxPictureDataContainer($picture_data->source);
+							$pict_idx = (count($datas->pictures)-1);
+							$datas->pictures[$pict_idx]->title=$pictures_data->name;
+							break;
+						}
 					}
+					$url = $gallery_data->paging->next;
 				}
+				
 			}
 		}
 		// it's website link, lets go to complete our datas from the source url 
 		elseif ($feed_data->type == "link"){
 			$datas->type = "article";
 			$datas->category = $this->categories["article"];
-			$datas->source = $feed_data->link;
-			$list_datas = $this->get_datas_from_url($feed_data->link);
+			$list_datas = $this->get_datas_from_url($this->cleanUrl($feed_data->link));
+			$datas->source = $list_datas->source ;
 		}
 		// it's video provider link, lets go to complete our datas from the source url 
 		elseif ($feed_data->type == "video"){
+			$datas->type = "video";
 			$datas->source = $feed_data->link;
-			$list_datas = $this->get_datas_from_url($feed_data->link);
+			$list_datas = $this->get_datas_from_url($this->cleanUrl($feed_data->link));
+			$datas->category = $list_datas->category;
+			$datas->source = $list_datas->source ;
+		}
+		// it's photo gallery post lets go to complete our datas from the source url 
+		elseif ($feed_data->type == "photo" && $feed_data->picture != "" && $feed_data->story != "" && $feed_data->link != "" ){
+			$datas->type = "picture";
+			$datas->source = $feed_data->link;			
+			// set type and category
+			$datas->category = $this->categories["picture"];
+			$datas->title = $feed_data->name;
+			$datas->message = $feed_data->message;
+			$datas->description = $feed_data->message;
+			$json_object = $this->fetchUrl("https://graph.facebook.com/".$feed_data->object_id."?{$authToken}");			
+			$cover_data = json_decode($json_object);
+			// Get the cover picture for first picture in our object
+			$datas->pictures[] = new RedboxPictureDataContainer($cover_data->source);
+			$datas->pictures[$pict_idx]->title = $cover_data->name;
+						
+			$facebook = new Facebook(array(
+			'appId' => $this->fb_config['app_id'],
+			'secret' => $this->fb_config['app_secret'],
+			'cookie' => true,
+			));
+			 
+			$fql = 'SELECT attachment FROM stream WHERE post_id="'.$id_fb.'"';
+			 
+			$response = $facebook->api(array(
+			'method' => 'fql.query',
+			'query' =>$fql,
+			));
+
+			foreach ($response[0]["attachment"]["media"] as $media_data){
+				$url = "https://graph.facebook.com/".$media_data["photo"]["fbid"]."/?fields=source,name&{$authToken}";
+				$json_object = $this->redbox->retriever->fetchUrl($url);
+				$picture_data = json_decode($json_object);
+				$datas->pictures[] = new RedboxPictureDataContainer($picture_data->source);
+				$pict_idx = (count($datas->pictures)-1);
+				$datas->pictures[$pict_idx]->title=$media_data["alt"];
+			}
+			//$facebook->clearPersistentData();
 		}
 		// it's a facebook picture item, let's pick it
 		elseif ($feed_data->picture != ""){
@@ -259,20 +355,16 @@ class RedboxDataRetriever{
 			$datas->category = $this->categories["picture"];
 			// if we have no source for the picture, recheck API datas from the link
 			if (!$feed_data->source){
-				$list_datas = $this->get_datas_from_facebook($feed_data->object_id,$quick);
+				// pass this datas and get datas from the picture source instead of post source
+				$pass=true;
+				$datas = $this->get_datas_from_facebook($feed_data->object_id,$quick);
+				// keep the original ID and not the object_id
+				$datas->fb_id = $id_fb;
 			}
 			else{
 				$datas->source = $feed_data->source;
 				$datas->pictures[] = new RedboxPictureDataContainer($feed_data->source);
 				$pict_idx = (count($datas->pictures)-1);
-			}
-			
-			// if it's a facebook photo, but maybe we have a posted website links into the message ?
-			// let's complete data with it!
-			$an_url = null;
-			preg_match_all('!https?://[\S]+!', $datas->message, $match);
-			foreach ($match[0] as $an_url) {
-				$list_datas = $this->get_datas_from_url($an_url,$quick);
 			}
 		}
 		else{
@@ -284,24 +376,195 @@ class RedboxDataRetriever{
 			$datas->description = $feed_data->description;
 		}
 		// still no title (from website or video provider, or else?), generate it !
-		if (trim($datas->title)==""){
-			if ($datas->message!="") $base = $datas->message;
+		if (trim($datas->title)=="" && (trim($datas->message)!=''||trim($datas->description)!='')){
+			$base='';
+			if (trim($datas->message)!="") $base = $datas->message;
 			if ($base=="") $base = $datas->description;
-			preg_match('/^(?>\S+\s*){1,MAX_WORDS_FOR_TITLE_GENERATED}/', $base, $match);
-			$datas->title = $match[0]."...";
+			preg_match('/^(?>\S+\s*){1,'.MAX_WORDS_FOR_TITLE_GENERATED.'}/', $base, $match);
+			if ($match){
+				$datas->title = $match[0]."...";
+			}
+			else{
+				$datas->title = $base;
+			}
 		}
 		// still no origin for the source?
-		if (trim($datas->origin)=="") $datas->origin = "www.facebook.com";
+		if (trim($datas->origin)=="") $datas->origin = "facebook.com";
 		
-		// feed the list_data and return it
-		$this->list_datas[] = $datas;
-		return $datas;
+		if ($datas->type != "gallery"){
+		// maybe we have a posted website links into the message ?
+		// let's complete data urls found in it !
+			preg_match_all('!https?://[\S]+!', $datas->message, $match);
+			foreach ($match[0] as $an_url) {
+				$this->get_datas_from_url($this->cleanUrl($an_url));
+			}
+		}
+
+		if (!$pass && ($datas->message !='' || $datas->name !='' || $datas->description !='')){
+			// feed the list_data and return it
+			if ((($datas->type=='video' || $datas->type=='article') && count($this->list_datas)>0) 
+			|| ($datas->type!='video' && $datas->type!='article')){
+				$this->list_datas[] = $datas;
+				return $datas;
+			}
+			else{
+				return null;
+			}
+		}
+		else{
+			return false;
+		}
+	}
+	
+	public function cleanUrl($url){
+		// clean the url with no needed args
+		foreach($this->redbox->configuration->to_clean_in_urls as $replace){
+			$url  = str_replace($replace,'',$url);
+		}
+		if (substr($url,(strlen($url)-1),(strlen($url)))=='#') $url = substr($url,0,(strlen($url)-1));
+		return $url;
+	}
+	
+	public function cleanTitle($title){
+		// clean the url with no needed args
+		foreach($this->redbox->configuration->to_clean_in_titles as $replace){
+			$title  = str_replace($replace,'',$title);
+		}
+		return $title;
+	}
+	public function cleanText($text){
+		// clean the url with no needed args
+		foreach($this->redbox->configuration->to_clean_in_texts as $replace){
+			$text  = str_replace($replace,'',$text);
+		}
+		return $text;
 	}
 
-	private function get_datas_from_url($url,$quick=false){
-		
+	public function convertedString($string){
+		$debug= $string."<br />";
+		$tmp_string = $string;
+		// check the caracter coding for html
+		$string = preg_replace("/%u([0-9a-f]{3,4})/i","&#x\\1;",urldecode($string));
+		$debug.= "urldecode<br />";
+		$debug.= $string."<br />\n";
+		if (strpos($this->contentType,'utf-8')>0 || strpos($this->contentType,'utf8')>0 || strpos($this->contentType,'UTF-8')>0 || strpos($this->contentType,'UTF8')>0){
+			if (valid_utf8($string)){
+				$debug.= "detect and iconv : ".$this->contentType."<br />";
+				$string = iconv(mb_detect_encoding($string, mb_detect_order(), true), "UTF-8", $string);
+				$debug.= $string."<br />\n";
+				//$string = html_entity_decode($string,null,'UTF-8');
+				//$tmp_string = $string;
+				$string = $tmp_string;
+				$debug.= "decode : <br />";
+				$string_decoded = utf8_decode($string);
+				$debug.= $string_decoded."<br />\n";
+				if (strlen($string_decoded) < strlen($string)){
+					$debug.= "decode is best : <br />";
+					$string = $string_decoded;
+					$debug.= $string."<br />\n";
+				}
+
+				$string_decoded=str_replace("’","'",$tmp_string);
+				$string_decoded=str_replace("Â«","\"",$string_decoded);
+				$string_decoded=str_replace("Â»","\"",$string_decoded);
+				$string_decoded=str_replace("«","\"",$string_decoded);
+				$string_decoded=str_replace("»","\"",$string_decoded);
+				$string_decoded=str_replace("—","-",$string_decoded);
+				$string_decoded = Encoding::fixUTF8($string_decoded);
+				if (strlen($string_decoded) <= strlen($string) ){
+					//$string = $string_decoded;
+					$debug.= "fixed+ : ".$this->contentType."<br />";
+					$debug.= $string_decoded."<br />\n";
+				}
+				
+				if (!valid_utf8($string)){
+					$string = $tmp_string;
+					$debug.= "cancel<br />";
+					$debug.= $string."<br />\n";
+					
+					if (!valid_utf8($string)){
+						$string = $tmp_string;
+						$debug.= "convert to uft8 : <br />";
+						$string = mb_convert_encoding($string,'utf-8');
+						$debug.= $string."<br />\n";
+					}
+				}
+				
+				if (!valid_utf8($string)){
+					$string = $tmp_string;
+					$debug.= "decode : <br />";
+					$string = utf8_decode($string);
+					$debug.= $string."<br />\n";
+				}
+				
+			}
+			
+			if (!valid_utf8($string)){
+				$debug.= "convert to utf8 : <br />";
+				$string = mb_convert_encoding($string,'utf-8');
+				$debug.= $string."<br />\n";
+			}
+		}	
+		else{
+			$tmp_string = $string;
+			$debug.= "decode non-utf8<br />";
+			$string = utf8_decode($string);
+			$debug.= $string."<br />\n";
+			if (!valid_utf8($string)){
+				$string = $tmp_string;
+				$debug.= "convert to utf8 : <br />";
+				$string = mb_convert_encoding($string,'utf-8');
+				$debug.= $string."<br />\n";
+			}
+			$string_decoded = utf8_encode($tmp_string);
+			if (strlen($string_decoded) < strlen($string)){
+				$string = $string_decoded;
+				$debug.= "encode from : ".$this->contentType."<br />";
+				$debug.= $string."<br />\n";
+			}
+		}
+		if (substr_count($string_decoded,'?')<substr_count($string,'?')){
+			$string = $string_decoded;
+			$debug.= "fixed+ is best : (entry:".$this->contentType.")<br />";
+			$debug.= $string."<br />\n";
+		}
+		//$string = html_entity_decode($string,ENT_QUOTES);
+		$debug.= "result : <br />".$string."<br />\n<br /><hr />";
+		//echo $debug;
+		return $string;
+	}
+
+	// get datas inside the html we get from the url
+	private function get_datas_from_url($url,$redir=0){
+		$base_url='';
 		// we don't know what is behind the url ..
+		$forced_type=null;
+		$url_exists=false;
 		$is_image_url = false;
+		$with_gallery=false;
+		// check if we have REDBOX arg from the url -> forced_type
+		foreach ($this->categories as $type => $category){
+			if (stripos($url,'#'.$type)>0){
+				$forced_type=$type;
+				$url = str_replace('#'.$type,'',$url);
+				break;
+			}
+		}
+		// check if we need a gallery pictures
+		if (stripos($url,'#with_gallery')>0){
+			$with_gallery=true;
+			$url = str_replace('#with_gallery','',$url);
+		}
+		
+		$url = $this->cleanUrl($url);
+		
+		foreach($this->list_datas as $d){
+			if (trim($d->url) == trim($url)){
+				$url_exists=true;
+				return false;
+				break;
+			}
+		}
 		
 		// instantiate a data container that we will add to the list_data
 		$datas = new RedboxDataContainer();
@@ -311,11 +574,12 @@ class RedboxDataRetriever{
 		// if still no origin, get the origin url
 		if (trim($datas->origin)==""){
 			$parsed =  parse_url($url);
-			$datas->origin = $parsed['host'];
+			$base_url=$parsed['host'];
+			$datas->origin = str_replace('www.','',$parsed['host']);
 		}
 		
 		//first, check if a picture is in the url
-		preg_match('/[^\?]+\.(jpg|JPG|jpe|JPE|jpeg|JPEG|gif|GIF|png|PNG)/', $url, $matches);
+		preg_match('/[^\?]+\.(jpg|JPG|jpe|JPE|jpeg|JPEG|gif|GIF|png|PNG|image|IMAGE)/', $url, $matches);
 		if ($matches) {
 			$datas->pictures[] =  new RedboxPictureDataContainer($matches[0]);
 			$pict_idx = (count($datas->pictures)-1);
@@ -327,26 +591,23 @@ class RedboxDataRetriever{
 	
 		// if it's not a simple picture, let's go deeper in HTML code exploration
 		if (!$is_image_url){
-			
 			// get the HTML response from the url (HTML code and DOMdoc)
 			libxml_use_internal_errors(true);
 			$doc = new DomDocument();
 			$html = $this->fetchUrl($url);
-			$doc->loadHTML($html);
-			
-			// check the caracter coding for html
-			$metas = $doc->getElementsByTagName('meta');
-			for ($i = 0; $i < $metas->length; $i++)	{
-				$meta = $metas->item($i);
-				$found = false;
-				if(($meta->getAttribute('http-equiv') == 'Content-Type')||($meta->getAttribute('http-equiv') == 'content-type')){
-					$found = true;
-					break;
-				}
+			if (!$html) return null;
+		}
+		
+		if (!$is_image_url && $html){
+		
+			if ($forced_type){
+				$datas->type = $forced_type;
+				$datas->category = $this->categories[$forced_type];
 			}
-			if (!$found) $doc->loadHTML(utf8_decode($html));
+			
+			$doc->loadHTML($html);
+						
 			$xpath = new DOMXPath($doc);
-
 
 			// get the icon for the author picture if no exists
 			if (trim($datas->author_picture->url)==""){
@@ -354,19 +615,13 @@ class RedboxDataRetriever{
 				for ($i = 0; $i < $metas->length; $i++)	{
 					$meta = $metas->item($i);
 					if($meta->getAttribute('rel') == 'shortcut icon'){
-						$datas->author_picture = new RedboxPictureDataContainer($meta->getAttribute('href'));
-						break;
-					}
-				}
-			}
-
-			// look for title from the website's OpenGraph meta data
-			if (trim($datas->title) ==""){
-				$query = '//*/meta[starts-with(@property, \'og:title\')]';
-				$metas = $xpath->query($query);
-				foreach ($metas as $meta) {
-					if ($meta->getAttribute('property') == "og:title"){
-						$datas->title = $meta->getAttribute('content');
+						$fav_icon = $meta->getAttribute('href');
+						if (strstr(trim($fav_icon),"http")){
+							$fav_icon = $fav_icon;
+						}else{
+							$fav_icon = 'http://'.$base_url.'/'.$fav_icon;
+						}
+						$datas->author_picture = new RedboxPictureDataContainer($fav_icon);
 						break;
 					}
 				}
@@ -375,12 +630,31 @@ class RedboxDataRetriever{
 			// if we don't have title, take ifr from the title HTML TAG
 			if (trim($datas->title) ==""){
 				$nodes = $doc->getElementsByTagName( "title" );
-				$datas->title = $nodes->item(0)->nodeValue;
+				$datas->title =  $this->convertedString($nodes->item(0)->nodeValue);
 			}
 
-			// let's look for a picture !
+			// look for title from the website's OpenGraph meta data
+			if (trim($datas->title) ==""){
+				$query = '//*/meta[starts-with(@property, \'og:title\')]';
+				$metas = $xpath->query($query);
+				foreach ($metas as $meta) {
+					if ($meta->getAttribute('property') == "og:title"){
+						$datas->title = $this->convertedString($meta->getAttribute('content'));
+						break;
+					}
+				}
+			}
+			
+			// check if we have a redirected content
+			preg_match('!https?://[\S]+!', $datas->title, $match);
+			if ($match && count($match)>0 && $redir<=MAX_REDIR) 
+				return $this->get_datas_from_url($match[0],$redir++);
+
+			// let's look for pictures !
 			$picture_url = "";
 			$picture_title = "";
+			$og_pictures = array();
+			$html_pictures = array();
 			
 			// look for picture from the website's OpenGraph meta data
 			$query = '//*/meta[starts-with(@property, \'og:image\')]';
@@ -390,21 +664,64 @@ class RedboxDataRetriever{
 					$picture_url = $meta->getAttribute('content');
 					$tmp_url = explode("?",$picture_url);
 					$picture_url = $tmp_url[0];
-					break;
+					$dimensions = null;
+					$dimensions = $this->redbox_getimagesize( $picture_url );
+					if ($dimensions[0] >= MIN_WIDTH_OF_PICTURES_IF_SEEKED_IN_HTML 
+					&& $dimensions[1] >= MIN_HEIGHT_OF_PICTURES_IF_SEEKED_IN_HTML){
+						$og_pictures[] = new RedboxPictureDataContainer($picture_url,$dimensions);
+						$pict_idx = (count($og_pictures)-1);			
+						if ($og_pictures[$pict_idx]) 
+							$og_pictures[$pict_idx]->title = $datas->title . " " .count($og_pictures);
+					}
 				}
 			}
 
-			// if no picture found, get the first "big" picture in html (width>400px)
-			if (trim($picture_url) ==""){
+			if (count($og_pictures) ==0){
+				// look for picture from the website's twitter meta data
+				$query = '//*/meta[starts-with(@property, \'twitter:image:src\')]';
+				$metas = $xpath->query($query);
+				foreach ($metas as $meta) {
+					if ($meta->getAttribute('property') == "twitter:image:src"){
+						$picture_url = $meta->getAttribute('content');
+						$tmp_url = explode("?",$picture_url);
+						$picture_url = $tmp_url[0];
+						$dimensions = null;
+						$dimensions = $this->redbox_getimagesize($picture_url);
+						if ($dimensions[0] >= MIN_WIDTH_OF_PICTURES_IF_SEEKED_IN_HTML 
+						&& $dimensions[1] >= MIN_HEIGHT_OF_PICTURES_IF_SEEKED_IN_HTML){
+							$og_pictures[] = new RedboxPictureDataContainer($picture_url,$dimensions);
+							$pict_idx = (count($og_pictures)-1);			
+							if ($og_pictures[$pict_idx]->title)  
+								$og_pictures[$pict_idx]->title = $datas->title . " " .count($og_pictures);
+						}
+					}
+				}
+			}
+			
+			if (count($og_pictures) ==0 || $datas->type=='gallery' || $with_gallery){
+				// get the "big" pictures in html (width>400px)
 				$metas = $doc->getElementsByTagName('img');
 				$nb_pict = 0;
+				$rejected_pict = array();
 				for ($i = 0; $i < $metas->length; $i++)	{
 					$meta = $metas->item($i);
-					$dimensions = null;
-					$dimensions = getimagesize( $meta->getAttribute('src') );
-					if ($dimensions[0] > MIN_WIDTH_OF_PICTURES_IF_SEEKED_IN_HTML){						
-						$picture_url = $meta->getAttribute('src');
-						$picture_title = $meta->getAttribute('title');
+					if (trim($meta->getAttribute('src')) !=''){
+						$picture_url = trim($meta->getAttribute('src'));
+						$picture_url = str_replace('../','',$picture_url);
+						if (strpos($picture_url,"http")==0 && strstr($picture_url,"http")!=''){
+							$picture_url = $picture_url;
+						}
+						else{
+							if (strpos($picture_url,"//")==0 && strpos($picture_url,"//")!==false){
+								$picture_url = 'http:'.$picture_url;
+							}
+							else{
+								$picture_url = 'http://'.$base_url.'/'.$picture_url;
+							}
+						}
+					
+						preg_match('/[^\?]+\.(jpg|JPG|jpe|JPE|jpeg|JPEG|gif|GIF|png|PNG|image|IMAGE)/', $picture_url, $matches);
+					
 						// check if it's not a double
 						$exists = false;
 						foreach($datas->pictures as $exists_pict){
@@ -413,30 +730,59 @@ class RedboxDataRetriever{
 								break;
 							}
 						}
-						if (!$exists){
-							$nb_pict++;
-							$datas->pictures[] = new RedboxPictureDataContainer($picture_url);
-							$pict_idx = (count($datas->pictures)-1);
-							if ($datas->pictures[$pict_idx]->title)  $datas->pictures[$pict_idx]->title = $picture_title;
-							if ($nb_pict == NUMBER_OF_PICTURES_IF_SEEKED_IN_HTML) break;
+						foreach($rejected_pict as $exists_pict){
+							if ($exists_pict == $picture_url) {
+								$exists = true;
+								break;
+							}
+						}
+						// add the picture url to our list
+						if (!$exists && $matches){
+							$dimensions = null;
+							$dimensions = $this->redbox_getimagesize( $picture_url );
+							if ($dimensions[0] >= MIN_WIDTH_OF_PICTURES_IF_SEEKED_IN_HTML 
+							&& $dimensions[1] >= MIN_HEIGHT_OF_PICTURES_IF_SEEKED_IN_HTML){
+								$picture_title = $meta->getAttribute('title');
+								if (trim($picture_title)=='')  
+									$picture_title = $datas->title . " " .(count($og_pictures) + count($html_pictures));
+								
+								$nb_pict++;
+								$html_pictures[] = new RedboxPictureDataContainer($picture_url,$dimensions);
+								$pict_idx = (count($html_pictures)-1);
+								$html_pictures[$pict_idx]->title = $picture_title;
+
+								if ($datas->type=='gallery' || $with_gallery){
+									if ($nb_pict == NUMBER_OF_PICTURES_IF_SEEKED_IN_HTML_FOR_GALLERIES) break;
+								}
+								else{
+									if ($nb_pict == NUMBER_OF_PICTURES_IF_SEEKED_IN_HTML) break;
+								}
+							}
+							else{
+								$rejected_pict[]= $picture_url;
+							}
 						}
 					}
 				}
 			}
-			else{
-				// finaly create the picture instance in this object
-				$datas->pictures[] = new RedboxPictureDataContainer($picture_url);
-				$pict_idx = (count($datas->pictures)-1);			
-				if ($datas->pictures[$pict_idx]->title)  $datas->pictures[$pict_idx]->title = $picture_title;
+			
+			// add founded pictures in our data container
+			foreach ($og_pictures as $picture){
+				$picture->in_gallery = $with_gallery;
+				$datas->pictures[] = $picture;
 			}
+			foreach ($html_pictures as $picture){
+				$picture->in_gallery = $with_gallery;
+				$datas->pictures[] = $picture;
+			}
+			
 			// check for embed link for a video in the OpenGraph meta data
 			$query = '//*/meta[starts-with(@property, \'og:video\')]';
 			$metas = $xpath->query($query);
 			foreach ($metas as $meta) {
 				if ($meta->getAttribute('property') == "og:video"){
 					$datas->type = "video";
-					$datas->category = $this->categories["video"];
-					$datas->video_datas = $this->get_video_data_from_provider($meta->getAttribute('content'));
+					$datas->video_datas = $this->get_video_data_from_provider($url);
 					if (trim($datas->video_datas->duration) ==""){
 						$query = '//*/meta[starts-with(@property, \'video:duration\')]';
 						$metas = $xpath->query($query);
@@ -460,6 +806,9 @@ class RedboxDataRetriever{
 						$datas->title = $datas->video_datas->title;
 					}
 				}
+				else{
+				
+				}
 				if (trim($datas->author_url) ==""){
 					$query = '//*/meta[starts-with(@property, \'og:video:director\')]';
 					$metas = $xpath->query($query);
@@ -471,15 +820,27 @@ class RedboxDataRetriever{
 					}
 				}
 			}
-						
+
 			// check for description in the OpenGraph meta data
-			
 			$query = '//*/meta[starts-with(@property, \'og:description\')]';
 			$metas = $xpath->query($query);
 			foreach ($metas as $meta) {
 				if ($meta->getAttribute('property') == "og:description"){
-					$tmp_description = $meta->getAttribute('content');
+					$tmp_description = $this->convertedString($meta->getAttribute('content'));
 					break;
+				}
+			}
+			
+			// check for description in the Twitter meta data
+			if (trim($tmp_description) ==""){
+				// check for description in the OpenGraph meta data
+				$query = '//*/meta[starts-with(@property, \'twitter:description\')]';
+				$metas = $xpath->query($query);
+				foreach ($metas as $meta) {
+					if ($meta->getAttribute('property') == "twitter:description"){
+						$tmp_description = $this->convertedString($meta->getAttribute('content'));
+						break;
+					}
 				}
 			}
 			
@@ -488,8 +849,8 @@ class RedboxDataRetriever{
 			$metas = $doc->getElementsByTagName('meta');
 				for ($i = 0; $i < $metas->length; $i++)	{
 					$meta = $metas->item($i);
-					if($meta->getAttribute('name') == 'description')
-						$tmp_description = $meta->getAttribute('content');			 	
+					if($meta->getAttribute('name') == 'description' || $meta->getAttribute('name') == 'Description')
+						$tmp_description = $this->convertedString($meta->getAttribute('content'));
 				}
 			}
 			
@@ -500,17 +861,20 @@ class RedboxDataRetriever{
 				$meta = $metas->item($i);
 				$text = $meta->textContent;
 				if (str_word_count($text) > MIN_WORDS_FOR_DESCRIPTION_IN_HTML_TAGS){
-					$p_tag_description = strip_tags($text);
+					if ($datas->origin=='youtube.com'){
+						$p_tag_description = $this->convertedString(strip_tags(br2nl($meta->content)));
+					}
+					else{
+						$p_tag_description = $this->convertedString($text);
+					}
 					break;
 				}
 			}
-			
 			
 			// if still no description, get the video default description
 			if (trim($datas->video_datas->description)!=""&&trim($tmp_description)==""){
 				$tmp_description = $datas->video_datas->description;
 			}
-			
 			
 			if (substr($tmp_description,-3)=="..."){
 				$tmp_description = substr($tmp_description,0,(strlen($tmp_description)-4));
@@ -548,10 +912,16 @@ class RedboxDataRetriever{
 				$datas->video_datas->description = "";
 			
 			// get a title if still none
-			if (trim($datas->title)==""){
+			if (trim($datas->title)=="" && trim($datas->description)!=''){
 				preg_match('/^(?>\S+\s*){1,MAX_WORDS_FOR_TITLE_GENERATED}/', $datas->description, $match);
-				$datas->title = $match[0]."...";
-			}			
+				if (trim($match[0])!='') $datas->title = $match[0]."...";
+			}
+			
+			// get a title if still none
+			if (trim($datas->title)=="" && trim($datas->message)!=''){
+				preg_match('/^(?>\S+\s*){1,MAX_WORDS_FOR_TITLE_GENERATED}/', $datas->message, $match);
+				if (trim($match[0])!='') $datas->title = $match[0]."...";
+			}
 			
 			// clean the title from some basic sites datas
 			$tmp_url = explode("|",$datas->title);
@@ -582,12 +952,26 @@ class RedboxDataRetriever{
 			if (trim($datas->author_picture->title) ==""){
 				$datas->author_picture->title = $datas->author_name;
 			}
-			if (trim($datas->video_datas->url) == ''){
+			if (trim($datas->video_datas->url) == '' && !$forced_type){
 				$datas->type = "article";
 				$datas->category = $this->categories["article"];
 			}
+			
+			foreach($this->redbox->configuration->crowdfundings as $replace){
+				if (strstr($url,$replace)){
+					$datas->type = "crowdfunding";
+					$datas->category = "Crowdfunding";
+				}
+			}
+			
 			$datas->source = $url;
+			
+			// if we have a video rejected/blocked by Youtube, return null... it will be trashed
+			if ($datas->type == "article" && trim($datas->title)=="YouTube"){
+				return null;
+			}
 		}
+				
 		// feed the list_data and return it
 		$this->list_datas[]= $datas;
 		return $datas;
@@ -679,12 +1063,11 @@ class RedboxDataRetriever{
 			//Code HTML
 			$embed="http://www.youtube.com/embed/".$id;
 			$code = 
-				'<object width="425" height="355"><param name="movie"' .
+				'<object ><param name="movie"' .
 				' value="http://www.youtube.com/v/'.$id.
 				'&hl=fr"></param><param name="wmode" value="transparent"></param><embed' .
 				' src="http://www.youtube.com/v/'.$id.
-				'&hl=fr" type="application/x-shockwave-flash" wmode="transparent" width="425"' .
-				' height="355"></embed></object>';
+				'&hl=fr" type="application/x-shockwave-flash" wmode="transparent"></embed></object>';
 		}
 		else if ($type=="dailymotion"){
 			$viewsRegexp = '#<b class="video_views_value">(.*)</b>#U';
@@ -771,10 +1154,19 @@ class RedboxDataRetriever{
 		// try last catch in OG tags...
 		
 		
-		if ($type=="youtube"||$type=="dailymotion"||$type=="vimeo") {
-			$tmp_url = explode("?",$url);
-			$s_url = $tmp_url[0];
-			$shortcode = "[".$type." ".$s_url."]";
+		switch ($type){
+			case "youtube" :
+				$shortcode = "[".$type."=".$url."]";
+				break;
+			case "dailymotion" : 
+				$shortcode = "[".$type." id=".$id."]";
+				break;
+			case "vimeo" :
+				$shortcode = "[".$type." ".$id."]";
+				break;
+			case "soundcloud" :
+				$shortcode = "[".$type." url=".$url."]";
+				break;
 		}
 	
 		$tmp_url = explode("?",$embed);
@@ -796,6 +1188,227 @@ class RedboxDataRetriever{
 		$video_datas->shortcode=$shortcode;
 		return $video_datas;
 	}
+	
+	// get a single data container with an automatic proposition for import
+	public function get_proposed_import($list_datas=null){
+		if ($list_datas!=null) $this->list_datas = $list_datas;
+		
+		if (!$this->list_datas || count($this->list_datas) == 0) return null;
+		
+		$proposed = new RedboxDataContainer();
+		$titles = array();
+		$content="";
+		if ($this->list_datas==null || count($this->list_datas)<=0) {
+			$proposed->short_description = REDBOX_INVALID_PROPOSITION;
+			return $proposed;
+		}
+		$proposed->short_description=null;
+		$proposed->message='';
+		// check if we have messages 
+		foreach($this->list_datas as $datas){
+			if ($datas->message != ''){
+				if (!(stripos($datas->description,"<!--more-->") > 0)){
+					$content.= processString($datas->message) ."<br /><!--more--><br />";
+				}
+				else{
+					$content.= processString($datas->message) ."<br />";
+				}
+				if (trim($datas->fb_id) != '')
+					$content.= $this->get_human_link($datas);
+				$proposed->message.= $datas->message."<br /><br />";
+				
+				if (trim($datas->fb_id) != ''){
+					$proposed->title = $datas->title;
+				}
+			}
+		}
+		if (trim($this->list_datas[0]->fb_id) != ''){
+			$proposed->title = $this->list_datas[0]->title;
+		}
+		
+		$to_check = array('gallery','video','article','picture','crowdfunding');
+		// check in order to put "in front" the best datas
+		foreach($to_check as $check){
+			foreach($this->list_datas as $datas){
+				if ($datas->type == $check && (trim($datas->fb_id) == '' || (trim($datas->fb_id) != '' && $datas->type == 'gallery'))){
+					if ($datas->type != 'video' || ($datas->type == 'video' && trim($datas->video_datas->embed) !='')){
+						$proposed->type = $datas->type;
+						$proposed->category = $datas->category;
+						$proposed->source = $datas->source;
+						$proposed->url = $datas->url;
+						$proposed->origin = $datas->origin;
+						if (!$proposed->title || trim($proposed->title)=='')
+							$proposed->title = $datas->title;
+						if (!$proposed->short_description)  $proposed->short_description = $datas->short_description;
+						$proposed->created = $datas->created;
+						$proposed->author_name = $datas->author_name;
+						$proposed->author_url = $datas->author_url;
+						$proposed->author_picture = $datas->author_picture;
+						$proposed->video_datas = $datas->video_datas;
+						$proposed->video_datas->shortcode = $datas->video_datas->shortcode;
+						$proposed->video_datas->views = $datas->video_datas->views;
+						$proposed->video_datas->duration = $datas->video_datas->duration;
+						$proposed->video_datas->embed = $datas->video_datas->embed;
+						if ($proposed->video_datas->img->width != 0)
+							$proposed->pictures[] = $proposed->video_datas->img;
+						if (trim($datas->description)!='')
+							$content.= "<blockquote>".processString($datas->description)."</blockquote>";
+						if (trim($datas->fb_id) == '')
+							$content.= $this->get_human_link($datas);
+						break;
+					}
+				}
+				if ($proposed->type!='') break;
+			}
+			if ($proposed->type!='') break;
+		}
+		// get a title if none
+		if (trim($proposed->title)==''){
+			foreach($this->list_datas as $datas){
+				if (trim($datas->title)!=''){
+					$proposed->title=$datas->title;
+					break;
+				}
+			}
+		}
+		
+		// add all secondary datas to the proposal
+		foreach($this->list_datas as $datas){
+			if ($proposed->source!=$datas->source && $datas->fb_id==''){
+				if (trim($datas->title)!='') $content.= "<h5>".$datas->title."</h5><br />";
+				if (trim($datas->description)!='') $content.= "<blockquote>".processString($datas->description)."</blockquote><br />";
+				$content.= $this->get_human_link($datas);
+			}
+			// we'll add picture type after all to put it "in front"
+			if ($datas->type != 'picture' && $datas->type != 'gallery'){
+				$proposed->pictures = array_merge($proposed->pictures,$datas->pictures);
+			}
+		}
+		// check if we have a picture in sources for main picture and put it in front
+		$i=0;
+		foreach($this->list_datas as $datas){
+			$i++;
+			if (($datas->type == 'picture') || ($datas->type == 'gallery' && $i==1)){ //only the first gallery
+				$proposed->pictures = array_merge($datas->pictures,$proposed->pictures);
+				$skip_reorder = true;
+			}
+		}
+		// delete clones
+		for($i=0;$i<count($proposed->pictures);$i++){
+			for($j=($i+1);$j<count($proposed->pictures);$j++){
+				if($proposed->pictures[$i]->url==$proposed->pictures[$j]->url) {
+					unset($proposed->pictures[$j]);
+				}
+			}
+		}
+		
+		if (!$skip_reorder) $proposed = $this->reorder_pictures_in_datas($proposed);
+		
+		$proposed->description = $content;
+		// last check for facebook datas
+		$i=0;
+		foreach($this->list_datas as $datas){
+			$proposed->title = str_replace(" - ".$datas->author_name,'',$proposed->title);
+			if (trim($datas->fb_id) != ''){
+				$proposed->fb_id = $datas->fb_id;
+				$proposed->created = $datas->created;
+				$proposed->fb_id_author = $datas->fb_id_author;
+				$proposed->author_name = $datas->author_name;
+				$proposed->author_url = $datas->author_url;
+				$proposed->author_picture = $datas->author_picture;
+				$checkdate = getdate(strtotime(stripslashes($datas->created)));
+				if ($checkdate['hours'] >= 20 && $checkdate['hours'] <= 23 && $proposed->type=='video'){
+					$proposed->type = "video";
+					$proposed->category = "Culture";
+					for($i=0;$i<count($this->list_datas);$i++){
+						$this->list_datas[$i]->type = $proposed->type;
+						$this->list_datas[$i]->category = $proposed->category;
+					}
+				}
+				break;
+			}
+			$i++;
+		}
+		$proposed->short_description = $this->cleanText($proposed->short_description);
+		$proposed->description = $this->cleanText($proposed->description);
+		$proposed->message = $this->cleanText($proposed->message);
+		// clean title
+		$proposed->title = $this->cleanTitle($proposed->title);
+		$proposed->title = str_replace(" - ".$proposed->origin,'',$proposed->title);
+		$proposed->title = str_replace(" sur ".$proposed->origin,'',$proposed->title);
+		$proposed->title = str_replace(" on ".$proposed->origin,'',$proposed->title);
+		$proposed->title = str_replace(" | ".$proposed->origin,'',$proposed->title);
+		$proposed->title = str_replace(" - ".$proposed->author_name,'',$proposed->title);
+		$proposed->title = str_replace(" sur ".$proposed->author_name,'',$proposed->title);
+		$proposed->title = str_replace(" on ".$proposed->author_name,'',$proposed->title);
+		$proposed->title = str_replace(" | ".$proposed->author_name,'',$proposed->title);
+		return $proposed;
+	}
+
+	private function get_human_link($datas){
+		
+		
+		if (trim($datas->fb_id) != '' && trim($datas->author_name) != ''){
+			$url = $datas->url;
+			if (trim($datas->type)!='gallery')
+				$message = REDBOX_REED_FACEBOOK_POST;
+			else 
+				$message = REDBOX_WATCH_FACEBOOK_GALLERY;
+		}
+		else{
+			$url = $datas->source;
+			switch ($datas->type){
+				case 'video':
+					$message = REDBOX_WATCH_VIDEO;
+					break;
+				case 'article':
+					$message = REDBOX_REED_ARTICLE;
+					break;
+				case 'picture':
+					$message = REDBOX_SEE_PICTURE;
+					break;
+				case 'gallery':
+					$message = REDBOX_WATCH_GALLERY;
+					break;
+				case 'crowdfunding':
+					$message = REDBOX_REED_CROWDFUNDING;
+					break;
+				default:
+					$message = REDBOX_REED;
+					break;
+			}
+		}
+		if(trim($datas->author_name) != '' && trim($datas->author_name) != trim($datas->origin) && $datas->type!="crowdfunding") {
+			$title= $datas->author_name;
+			$message.= ' '._OF;
+		}
+		else{
+			$title= $datas->origin;
+			$message.= ' '._ON;
+		}
+		
+		if (trim($datas->author_picture->url)!=''){
+			$image = '<img src="'.$datas->author_picture->url.'" />';
+		}
+		else{
+			if ($datas->type=='video') {
+				$icon = 'icon-film';
+			}
+			elseif ($datas->type=='article') {
+				$icon = 'icon-file-alt';
+			}
+			elseif ($datas->type=='picture'||$datas->type=='gallery') {
+				$icon = 'icon-picture';
+			}
+			else{
+				$icon = 'icon-file-alt';
+			}
+			$image = '<i class="'.$icon.'"></i>&nbsp;';
+		}
+		$link = $message . " <a target='_blank' href='".$url."' >". $title ."</a>";
+		$link = '<span class="redbox_human_link">'.$image.$link.'</span><br /><br />';
+		return $link;
+	}
 
 	private function clean_descriptions(){
 		// first, clean for video description that could be sames
@@ -807,14 +1420,61 @@ class RedboxDataRetriever{
 		}
 		// recheck all principals descriptions 
 		for($i=0;$i<count($this->list_datas);$i++){
-			for($j=0;$j<count($this->list_datas);$j++){
+			for($j=($i+1);$j<count($this->list_datas);$j++){
 				if ($better = $this->get_better_description($this->list_datas[$i]->description,$this->list_datas[$j]->description)){
 					$this->list_datas[$i]->description = $better;
 					$this->list_datas[$j]->description = "";
 				}
 			}
 		}
+
+		// clean clones
+		for($i=0;$i<count($this->list_datas);$i++){
+			for($j=($i+1);$j<count($this->list_datas);$j++){
+				if ($this->list_datas[$i]->description == $this->list_datas[$j]->description){
+					$this->list_datas[$j]->description = "";
+				}
+				if ($this->list_datas[$i]->message == $this->list_datas[$j]->message){
+					$this->list_datas[$j]->message = "";
+				}
+			}
+		}
+
+		// clean clones message = description
+		for($i=0;$i<count($this->list_datas);$i++){
+			for($j=0;$j<count($this->list_datas);$j++){
+				if ($this->list_datas[$j]->description == $this->list_datas[$i]->message){
+					$this->list_datas[$j]->description = "";
+				}
+			}
+		}
+
+		// remove url from text if we found it in the text
+		for($i=0;$i<count($this->list_datas);$i++){
+			for($j=0;$j<count($this->list_datas);$j++){
+				if (trim($this->list_datas[$j]->source)!=''){
+					foreach($this->redbox->configuration->sub_replace_source as $replace){
+						$to_replace = $replace.$this->list_datas[$j]->source;
+						$this->list_datas[$i]->message  = str_replace($to_replace,'',$this->list_datas[$i]->message);
+						$this->list_datas[$i]->description  = str_replace($to_replace,'',$this->list_datas[$i]->description);
+					}
+				}
+			}
+			foreach($this->redbox->configuration->to_clean_in_urls as $replace){
+				$this->list_datas[$i]->message  = str_replace($replace,'',$this->list_datas[$i]->message);
+				$this->list_datas[$i]->description  = str_replace($replace,'',$this->list_datas[$i]->description);
+			}
+		}
+		
+		// get a short description
+		for($i=0;$i<count($this->list_datas);$i++){
+			if (trim($this->list_datas[$i]->description)!=''){
+				preg_match('/^(?>\S+\s*){1,30}/', $this->list_datas[$i]->description, $match);
+				$this->list_datas[$i]->short_description = $match[0]."...";
+			}
+		}
 	}
+	
 	// get the berrer description if they are the sames but one is longer
 	private function get_better_description($description_a,$description_b){
 		if ((stripos($description_a,$description_b)>=0) && (strlen($description_a) > strlen($description_b) )) {
@@ -826,16 +1486,107 @@ class RedboxDataRetriever{
 		return null;
 	}
 
-	private function fetchUrl($url){
+	// reorder pictures for datas from the higher width to the lower
+	private function reorder_pictures(){
+		for($i=0;$i<count($this->list_datas);$i++){
+			if ($this->list_datas[$i]->type!='gallery'){
+				for($j=0;$j<count($this->list_datas[$i]->pictures);$j++){
+					for($k=($j+1);$k<count($this->list_datas[$i]->pictures);$k++){
+						if ($this->list_datas[$i]->pictures[$k]->width > $this->list_datas[$i]->pictures[$j]->width){
+							$tmp_pict = $this->list_datas[$i]->pictures[$j];
+							$this->list_datas[$i]->pictures[$j] = $this->list_datas[$i]->pictures[$k];
+							$this->list_datas[$i]->pictures[$k] = $tmp_pict;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// reorder pictures for datas from the higher width to the lower
+	private function reorder_pictures_in_datas($datas){
+		if ($datas->type!='gallery'){
+			for($j=0;$j<count($datas->pictures);$j++){
+				for($k=($j+1);$k<count($datas->pictures);$k++){
+					if ($datas->pictures[$k]->width > $datas->pictures[$j]->width){
+						$tmp_pict = $datas->pictures[$j];
+						$datas->pictures[$j] = $datas->pictures[$k];
+						$datas->pictures[$k] = $tmp_pict;
+					}
+				}
+			}
+		}
+		return $datas;
+	}
+		
+	
+	// curl fetch an url ...
+	public function fetchUrl($url){
+		//$url.='/';
 		$ch = curl_init();
+		
+		$this->redbox->fallBack=false;
+		
 		curl_setopt($ch, CURLOPT_URL, $url);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_TIMEOUT, 80000);
+		//curl_setopt($ch, CURLOPT_HEADER, false);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		//You may need to add the line below
-		//curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
+		curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_ENCODING ,"");
+		curl_setopt($curl, CURLOPT_MAXREDIRS, 10);
+		
+		// TODO CHECK FOR REDIRECT
 		$feedData = curl_exec($ch);
+		//$feedData = file_get_contents($url);
+		
+		if (trim($feedData)!=''){
+			$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);		
+			//echo $url . " -> " . $httpCode . "<br />";
+			if($httpCode == 404) {
+				$feedData = null;
+			}
+			else{
+				$this->contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+			}
+		}
+		// let's try in fallback mode 
+		elseif ($this->redbox->configuration->fallBackUrl){
+			$this->redbox->fallBack=true;
+			$post = 'url='.$url.'&fb_config='.serialize($this->redbox->configuration->fb_config).'&categories='.serialize($this->redbox->configuration->categories);
+			$curl = curl_init();
+			curl_setopt($curl, CURLOPT_URL, $this->redbox->configuration->fallBackUrl);
+			curl_setopt($curl, CURLOPT_POST, true);
+			curl_setopt($curl, CURLOPT_POSTFIELDS, $post);
+			curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+			curl_setopt($curl, CURLOPT_FAILONERROR, true);
+			curl_setopt($curl, CURLOPT_MAXREDIRS, 5);
+			curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+			curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
+			$feedData = curl_exec($curl);
+			curl_close($curl);
+			$list_datas = unserialize($feedData);
+			foreach($list_datas as $datas) {
+				$datas->fallBack = true;
+				$this->list_datas[]=$datas;
+			}
+			$feedData = null;
+		}
+		else{
+			$feedData = null;
+		}
 		curl_close($ch); 
 		return $feedData;
+	}
+	
+	public function redbox_getimagesize($url){
+		//$image = new FastImage($url);
+		//$dim = $image->getSize();
+		$dim = getimagesize($url);
+		//echo $url.' - '.$dim[0].' - '.$dim[1].'<br />';
+		//echo '<img src="'.$url.'" /><br />';
+		return $dim;
 	}
 
 } // END CLASS RedboxDataRetriever
@@ -844,6 +1595,7 @@ class RedboxDataRetriever{
 class RedboxDataContainer{
 	public function __construct(){
 		$this->url = "";
+		$this->fallBack = false;
 		$this->fb_id = "";
 		$this->type = "";		
 		$this->category = "";
@@ -857,6 +1609,7 @@ class RedboxDataContainer{
 		$this->author_url = "";
 		$this->author_picture = array();
 		$this->description = "";
+		$this->short_description = "";
 		$this->pictures = array();
 		$this->video_datas = new RedboxVideoDataContainer();
 		return $this;
@@ -889,25 +1642,32 @@ class RedboxVideoDataContainer{
 class RedboxPictureDataContainer{
 	public $url,$title,$width,$height;
 
-	public function __construct($url=null){
+	public function __construct($url=null,$dimensions = null,$title=''){
 		$this->url = $url;
 		$this->ext = "";
-		$this->title = "";
-		if (trim($this->url)!=""){
+		$this->title = $title;
+		$this->in_gallery = false;
+		if (trim($this->url)!="" && !$dimensions){
 			$this->get_size();
 		}
 		else{ 
-			$this->width = 0;
-			$this->height = 0;
+			if ($dimensions){
+				$this->width = $dimensions[0];
+				$this->height = $dimensions[1];
+			}
+			else{
+				$this->width = 0;
+				$this->height = 0;			
+			}
 		}
 		return $this;
 	}
 	
 	public function get_size(){
-		preg_match('/[^\?]+\.(jpg|JPG|jpe|JPE|jpeg|JPEG|gif|GIF|png|PNG)/', $this->url, $matches);
+		preg_match('/[^\?]+\.(jpg|JPG|jpe|JPE|jpeg|JPEG|gif|GIF|png|PNG|image|IMAGE)/', $this->url, $matches);
 		if ($matches) {
 			$dimensions = null;
-			$dimensions = getimagesize( $this->url );
+			$dimensions =  RedboxDataRetriever::redbox_getimagesize( $this->url );
 			$this->width = $dimensions[0];
 			$this->height = $dimensions[1];
 		}
