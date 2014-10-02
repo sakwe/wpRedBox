@@ -1,10 +1,29 @@
-﻿<?php 
+<?php 
 /*
 Template Name: Page RedBox
 */
 get_header(); ?>
 
 <style>
+.content-area{
+	margin-top:0px !important;
+}
+
+.mt-button{
+	background: #f2f2f2;
+	color: #888888;
+}
+.mt-button:hover{
+	color: #ffffff;
+	background: #d31d1d;
+}
+a.mt-button i{
+	color: #ffffff;
+	background: #cccccc;
+}
+.mt-button i:hover {
+	background: #9e0f0f;
+}
 
 .mt-toggle .mt-toggle-title:hover, 
 .mt-toggle.active .mt-toggle-title{
@@ -21,6 +40,11 @@ display:none;
 }
 
 </style>
+<?php
+// for page title
+$modify_page_title = get_post_meta( get_the_ID(), 'mt_modify_default_pagetitle', true);
+if($modify_page_title == 'yes') { echo get_template_part( 'includes/page-title-options' ); }
+?>
 <div class="content-area">
 	<div class="page-title clearfix">
 		<div class="container">
@@ -55,10 +79,6 @@ display:none;
 		</div><!-- / .container -->
 	</div><!-- / .content -->
 </div><!-- / .content-area -->
-<?php
-// for page title
-$modify_page_title = get_post_meta( get_the_ID(), 'mt_modify_default_pagetitle', true);
-if($modify_page_title == 'yes') { echo get_template_part( 'includes/page-title-options' ); }
-?>
+
 
 <?php get_footer(); ?>

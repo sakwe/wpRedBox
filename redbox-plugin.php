@@ -39,7 +39,7 @@ session_start();
  * If PLUGIN_DIR/lang/ is writable, this plugin can auto make a translation file via google translate
  **/ 
 define ("REDBOX_LANGUAGE","fr");
-
+define ("REDBOX_DEBUG",false);
 // let's load languages support for RedBox 
 require_once(WP_PLUGIN_DIR.'/redbox/lang/redbox-lang.php');
 

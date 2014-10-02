@@ -581,6 +581,7 @@ class RedBoxFacebook{
 			$sql.=  $exclude.') OR (r.status IS NULL OR r.status = "")) ' .$type_selection; 
 		}
 		elseif($this->redbox->dispatcher->proposed_id== "-1"){
+			unset($_SESSION['last_proposed_id']);
 			return null;
 		}
 		else{

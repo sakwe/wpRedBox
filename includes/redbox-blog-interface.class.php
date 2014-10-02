@@ -27,6 +27,8 @@ class RedBoxBlog{
 		add_filter("comments_template", array(&$this,"redbox_comment_template"));
 		
 		add_action('pre_get_comments',array(&$this,'redbox_comment_filter'));
+		
+		add_action('init', array(&$this,'habfna_disable_admin_bar'), 9);
 	}
 	
 	
@@ -44,6 +46,21 @@ class RedBoxBlog{
 		</script>
 		<?php
 	}
+	
+	
+	public function habfna_hide_admin_bar_settings(){
+		echo '<style type="text/css">.show-admin-bar {display: none;}</style>';
+	}
+	
+	public function habfna_disable_admin_bar()
+	{
+		if(!current_user_can('edit_posts'))
+		{
+			add_filter( 'show_admin_bar', '__return_false' );
+			add_action( 'admin_print_scripts-profile.php', array(&$this,'habfna_hide_admin_bar_settings') );
+		}
+	}
+		
 	
 	public function redbox_comment_filter($query){
 
@@ -71,23 +88,8 @@ class RedBoxBlog{
 			$proposition_content.='</div>';
 			$proposition_content.= '<div class="clear"></div>';
 		}
-				
-		echo $datas->type;
-		if ($datas->type=='video') {
-			$icon = 'icon-film';
-		}
-		elseif ($datas->type=='article') {
-			$icon = 'icon-file-alt';
-		}
-		elseif ($datas->type=='picture'|| $datas->type=='gallery') {
-			$icon = 'icon-picture';
-		}
-		elseif ($datas->type=='crowdfunding') {
-			$icon = 'icon-group';
-		}
-		else{
-			$icon = 'icon-file-alt';
-		}
+
+		$icon = $this->redbox_get_icon_for($datas->type);
 		
 		$proposition_content.= '<div class="data_title"><h5><i class="'.$icon.'"></i>&nbsp;&nbsp;'.$datas->title.'</h5></div>';
 		
@@ -238,6 +240,7 @@ class RedBoxBlog{
 	
 	public function get_datas_fancy_viewer($list_datas,$linked=null,$post=null){
 		global $wpdb;
+
 		if (is_array($linked)){
 			$comment = $linked['comment'];
 			$post = $linked['post'];
@@ -254,38 +257,12 @@ class RedBoxBlog{
 		}
 		$datas=$this->redbox->retriever->get_proposed_import($list_datas);
 		
-		if ($datas->type=='video') {
-			$icon = 'icon-film';
-		}
-		elseif ($datas->type=='article') {
-			$icon = 'icon-file-alt';
-		}
-		elseif ($datas->type=='crowdfunding') {
-			$icon = 'icon-group';
-		}
-		else{
-			$icon = 'icon-picture';
-		}
+		$icon = $this->redbox_get_icon_for($datas->type);
 		
 		if (trim($datas->author_picture->url)!=''){
 			$image = '<img src="'.$datas->author_picture->url.'" class="redbox_mini_icon"/>&nbsp;&nbsp;';
 		}
 		else{
-			if ($datas->type=='video') {
-				$icon = 'icon-film';
-			}
-			elseif ($datas->type=='article') {
-				$icon = 'icon-file-alt';
-			}
-			elseif ($datas->type=='picture'|| $datas->type=='gallery') {
-				$icon = 'icon-picture';
-			}
-			elseif ($datas->type=='crowdfunding') {
-				$icon = 'icon-group';
-			}
-			else{
-				$icon = 'icon-file-alt';
-			}
 			$image = '<i class="'.$icon.'"></i>&nbsp;&nbsp;';
 		}
 		$author='';
@@ -374,18 +351,45 @@ class RedBoxBlog{
 			$mini_viewer.= '<div class="four columns portfolio-item" id="redbox-item-'.$post->ID.'">';
 			$mini_viewer.= '<span class="'.$title_class.'" style="display:inline-block;width:100%;height:100%;">';
 			$mini_viewer.= '<div class="redbox_minibox_icon">'.$image.$datas->category.'</div>';
-			$mini_viewer.= '<div class="redbox_minibox_author">'.PUBLISHED_BY.' '.$datas->author_url.'</div>';
+			//$mini_viewer.= '<div class="redbox_minibox_author">'.PUBLISHED_BY.' '.$datas->author_url.'</div>';
 			$mini_viewer.= '</span>';
 		}else{
 			$item_id = $comment->comment_ID;
 			$mini_viewer.= '<div class="four columns portfolio-item" id="redbox-item-'.$comment->comment_ID.'">';
 			$mini_viewer.= '<span class="'.$title_class.'" style="display:inline-block;width:100%;height:100%;">';
 			$mini_viewer.= '<div class="redbox_minibox_icon">'.$image.$datas->category.'</div>';
-			$mini_viewer.= '<div class="redbox_minibox_author">'.PROPOSED_BY.' <a target="_blank" href="'.$comment->comment_author_url.'">'.$comment->comment_author.'</a></div>';
+			//$mini_viewer.= '<div class="redbox_minibox_author">'.PROPOSED_BY.' <a target="_blank" href="'.$comment->comment_author_url.'">'.$comment->comment_author.'</a></div>';
 			$mini_viewer.= '</span>';
 		}
+		// hack to fit image at best and leave it work with isotope at the same time...
+		$code=''; 
+		$maxWidth = 350;
+		$maxHeight = 232;
+		$heihtWillHave = ( $datas->pictures[0]->height / $datas->pictures[0]->width ) * $maxWidth;
+		if ($heihtWillHave > $maxHeight){
+			$width = $datas->pictures[0]->width;
+			$code.= '<script>
+					jQuery(document).ready(function($) {
+						jQuery("#redbox_nailthumb_'.$item_id.'").nailthumb({width:'.$maxWidth.',height:'.$maxHeight.',fitDirection:\'top center\'});
+					}); 
+				</script>';
+		} else {
+			$widthWillHave = ( $datas->pictures[0]->width / $datas->pictures[0]->height ) * $maxHeight;
+			if ($widthWillHave < $maxWidth && $datas->pictures[0]->width > 0){
+				$height = $datas->pictures[0]->height;
+				$code.= '<script>
+						jQuery(document).ready(function($) {
+							jQuery("#redbox_nailthumb_'.$item_id.'").nailthumb({width:'.$maxWidth.',height:'.$maxHeight.',fitDirection:\'top center\'});
+						}); 
+					</script>';
+			}
+		}
+		$withHeight = "";
+		if (trim($code)!="") {
+			$withHeight = "width:".$maxWidth."px;height:".$maxHeight."px;";
+		}
 		$mini_viewer.= '<a class="image-overlay project-overlay" '. $a_tag_content.'>';
-		$mini_viewer.= '<div class="portfolio-item-top" style="text-align:center;">';
+		$mini_viewer.= '<div class="portfolio-item-top redbox-item-top" style="text-align:center;'.$withHeight.'">';
 		if (trim($datas->pictures[0]->url)!=''){
 			$picture_url = $datas->pictures[0]->url;
 		}
@@ -393,20 +397,10 @@ class RedBoxBlog{
 			$picture_url = WP_PLUGIN_URL."/redbox/img/redbox.jpg";
 		}
 		$mini_viewer.= '<img style="display:inline-block;text-align:center;" id="redbox_nailthumb_'.$item_id.'" src="'.$picture_url.'" alt="'.$datas->title.'" title="'.$datas->title.'" />';
-		
-		$code=''; 
-		if ($datas->pictures[0]->width < 340 && $datas->pictures[0]->width > 0){
-			$height = $datas->pictures[0]->height;
-			$code = '<script>
-					jQuery(document).ready(function($) {
-						jQuery("#redbox_nailthumb_'.$item_id.'").nailthumb({width:360,height:'.$height.'});
-					}); 
-				</script>';
-		}
 		$mini_viewer.= '<div class="over-bg"></div>';
 		$mini_viewer.= '<div class="over-info"><i class="'.$icon.'"></i></div>';
 		$mini_viewer.= '</div>';
-		$mini_viewer.= '<div class="portfolio-item-info">';
+		$mini_viewer.= '<div class="portfolio-item-info style="margin-top:Opx;padding-top:0px;">';
 		$mini_viewer.= '<h5>'.$datas->title.'</h5>';
 		if (trim($datas->short_description)!=''){
 			$match[0]= $datas->short_description;
@@ -416,13 +410,18 @@ class RedBoxBlog{
 			if (trim($match[0])=='') $match[0]= $datas->message;
 		}
 		$mini_viewer.= '<div style="margin-top:10px;">'.$match[0].'</div>';
+		
+		$mini_viewer.= '</div>';
+		$mini_viewer.= '</a>';
 		if ($mode == 'post_to_redbox'){
 			setlocale(LC_ALL, 'fr_FR');
 			$date = strftime("%e %B %G",strtotime(stripslashes($datas->created)));
 			$mini_viewer.= '<div style="text-align:right;width:100%;"><span>'.utf8_encode($date).'</span></div>';
+		}else{
+			if (trim($comment->comment_author) != ''){
+				$mini_viewer.= '<div style="text-align:right;width:100%;padding-top:10px;">'.PROPOSED_BY.' <a target="_blank" href="'.$comment->comment_author_url.'">'.$comment->comment_author.'</a></div>';
+			}
 		}
-		$mini_viewer.= '</div>';
-		$mini_viewer.= '</a>';
 		$mini_viewer.= '<span style="display:inline-block;width:100%;height:100%;">'.$author.'<div class="redbox_minibox_import redbox_button_box">';
 		
 		
@@ -441,7 +440,7 @@ class RedBoxBlog{
 					class="redbox_button '.$btn_style.'" value="'.$btn_title.'"/>';
 		}
 		
-		if (!$post && current_user_can( 'edit_posts' )){
+		if (!$post && current_user_can( 'edit_posts' ) && $list_datas && count($list_datas) > 0){
 			if ($can_publish){
 				$mini_viewer.= '<input type="button" 
 						onclick="redbox_ajax_do(\'redbox_post_proposed\','.$comment->comment_ID.');" 
@@ -474,6 +473,14 @@ class RedBoxBlog{
 					}
 					break;
 			}
+		} elseif (get_current_user_id() && get_current_user_id() ==  $comment->user_id){
+			$mini_viewer.= '<input type="button" 
+					onclick="redbox_ajax_do(\'redbox_proposition_delete\',\''.$comment->comment_ID.'\')" 
+					class="redbox_button redbox_button-danger" value="';
+			if ($post->post_status == "publish") $mini_viewer.=CLEAN;
+			else $mini_viewer.=CANCEL;
+			$mini_viewer.='"/>';
+		
 		}
 		$mini_viewer.= '</span></div>';
 		$mini_viewer.= '</div>';
@@ -500,16 +507,8 @@ class RedBoxBlog{
 		$mini_viewer.= '<div class="redbox_proposition_box" style="width:'.round((100/$number_on_width),0).'%"><div class="redbox_proposition_box_content';
 		if ($post) $mini_viewer.= " published";
 		$mini_viewer.= '">';
-		if ($datas->type=='video') {
-			$icon = 'icon-film';
-		}
-		elseif ($datas->type=='article') {
-			$icon = 'icon-file-alt';
-		}
-		else{
-			$icon = 'icon-picture';
-		}
-
+		
+		$icon = $this->redbox_get_icon_for($datas->type);
 		$mini_viewer.= '<div class="redbox_minibox_icon"><i class="'.$icon.'"></i> '.$datas->category.'</div>';
 		if ($comment)
 			$mini_viewer.= '<div class="redbox_minibox_author">'.PROPOSED_BY.' <a targeg="_blank" href="'.$comment->comment_author_url.'">'.$comment->comment_author.'</a></div>';
@@ -617,6 +616,85 @@ class RedBoxBlog{
 		}
 		return;
 	}
+
+	public function redbox_get_icon_for($slug,$complete_name='true'){
+		switch ($slug){
+			case "illustrations" :
+				$icon = "picture";
+				break;
+			case "articles" :
+				$icon = "globe";
+				break;
+			case "activite" :
+				$icon = "bullhorn";
+				break;
+			case "courtes-video" :
+				$icon = "film";
+				break;
+			case "culture" :
+				$icon = "heart";
+				break;
+			case "documentaires" :
+				$icon = "film";
+				break;
+			case "interviews" :
+				$icon = "microphone";
+				break;
+			case "liens" :
+				$icon = "link";
+				break;
+			case "uncategorized" :
+				$icon = "leaf";
+				break;
+			case "redaction" :
+				$icon = "info-sign";
+				break;
+			case "videos" :
+				$icon = "facetime-video";
+				break;
+			case "video" :
+				$icon = "facetime-video";
+				break;
+			case "documentaires" :
+				$icon = "film";
+				break;
+			case "habitat-alternatif" :
+				$icon = "home";
+				break;
+			case "street-art" :
+				$icon = "rocket";
+				break;
+			case "crowdfunding" :
+				$icon = "group";
+				break;
+			case "gallerie" :
+				$icon = "picture";
+				break;
+			case "picture" :
+				$icon = "picture";
+				break;
+			case "gallery" :
+				$icon = "picture";
+				break;
+			case "short_video" :
+				$icon = "facetime-video";
+				break;
+			case "documentary" :
+				$icon = "picture";
+				break;
+			case "music" :
+				$icon = "music";
+				break;
+			default : 
+				$icon = "file-alt";
+				break;
+
+		}
+		if ($complete_name==true)
+			return "icon-".$icon;
+		else
+			return $icon;
+	}
 	
 	public function enqueue_wp_scripts() {
 		wp_enqueue_script( 'jquery', 'http://code.jquery.com/jquery-1.9.1.min.js' );
@@ -648,10 +726,12 @@ class RedBoxBlog{
 		wp_enqueue_script( 'redbox-pp-custom', WP_PLUGIN_URL.'/redbox/js/jquerypp.custom.js' );
 		wp_enqueue_script( 'redbox-elastislide', WP_PLUGIN_URL.'/redbox/js/jquery.elastislide.js' );
 		wp_enqueue_script( 'redbox-thumbs', WP_PLUGIN_URL.'/redbox/js/jquery.nailthumb.min.js' );
+		// INIT DONE IN CODE : wp_enqueue_script( 'redbox_init', WP_PLUGIN_URL.'/redbox/js/redbox-init.js' );
 		$options = get_option('redbox_options');
 
 		if (isset($options['redbox_page_id']) && isset($_GET['p']) && $_GET['p']== $options['redbox_page_id']) {
 			wp_enqueue_script( 'wp_redbox_custom_comments', WP_PLUGIN_URL.'/redbox/js/custom-comments.js' );
+			
 		}
 		if( isset($_SESSION['dialogs'])){
 			echo $_SESSION['dialogs'];

@@ -12,6 +12,8 @@ define("NEXT","Suivant");
 
 define("CANCEL","Annuler");
 
+define("CLEAN","Enlever");
+
 define("CLOSE","Fermer");
 
 define("STOP","Arrêter");
@@ -40,7 +42,7 @@ define("RESTORE","Restaurer");
 
 define("IMPORT","Importer");
 
-define("PUBLISH","Créer un post");
+define("PUBLISH","Publier");
 
 define("RESYNC","Resynchroniser");
 
@@ -77,6 +79,8 @@ define("UPLOAD_FILE_ERROR","Erreur lors de l'envoi de fichier");
 define("FILE_GENERATED_BY","Fichier généré par");
 
 define("REDBOX_CONFIGURATION","Configuration de RedBox");
+
+define("REDBOX_OPTIONS","Options RedBox");
 
 define("REDBOX_CONFIGURATION_FACEBOOK","Configuration spécifique à Facebook");
 
@@ -119,6 +123,8 @@ define("REDBOX_PROPOSITION_QUERYING","RedBox est en train de récupérer les don
 define("REDBOX_PROPOSITION_DONE","Votre proposition a bien été enregistrée. Elle est soumise à l'approbation d'un administrateur avant d'être visible parmis les proposition RedBox. Si elle est appréciée, elle fera l'objet d'une publication sur nos réseaux.");
 
 define("REDBOX_PROPOSITION_VALIDATED","Votre proposition a bien été enregistrée. Elle est désormais disponible pour créer une publication sur votre blog.");
+
+define("REDBOX_PROPOSITION_DELETED","Votre proposition a bien été annulée.");
 
 define("REDBOX_PROPOSITION_ALREADY_DONE","Cette proposition a déjà été faite par un autre utilisateur.");
 
@@ -171,6 +177,8 @@ define("REDBOX_ERROR_DISAPPROVE_PROPOSITION_NOT_ALLOWED","Désolé. Vous n'avez 
 define("REDBOX_ERROR_DELETE_PROPOSITION_NOT_ALLOWED","Désolé. Vous n'avez pas les droits suffisants pour supprimer une proposition à partir de RedBox");
 
 define("REDBOX_CONFIGURE_BLOG_TITLE","Configurez ici la manière dont RedBox va s'intégrer dans votre blog.");
+
+define("REDBOX_IMPORT_BLOG_TITLE","Configurez ici les options d'import... TOTO !!! : Ces options sont uniquement configurables via le fichier redbox-global-configuration.class.php. Les paramètres enregistrés ici ne sont actuellement pas pris en compte par Redbox.");
 
 define("REDBOX_BLOG_PAGE_NAME","Page RedBox de votre blog");
 
@@ -228,6 +236,8 @@ define("REDBOX_IMPORT_ALL_FORCED","Tout forcer");
 
 define("REDBOX_IMPORT_POSTS","Posts manquants");
 
+define("REDBOX_IMPORT_FACEBOOK_NEEDED","Import des posts manquants");
+
 define("REDBOX_IMPORT_POSTS_FORCED","Forcer les posts");
 
 define("REDBOX_IMPORT_POSTS_CONTINUE","Continuer l'import");
@@ -253,6 +263,20 @@ define("REDBOX_SYNC_PROPOSITIONS","Synchroniser les propositions");
 define("REDBOX_RESYNCING_POST","Resynchroniser avec les données Facebook");
 
 define("REDBOX_FACEBOOK_ID_LABEL","Id Facebook de votre page");
+
+define("REDBOX_FALLBACK_URL","Url du script Fallback. \"Hack\" de contournement des détecteurs robots");
+
+define("REDBOX_FB_POST_SIGN","Signature des posts lors de la publication sur Facebook");
+
+define("REDBOX_CROWDFOUNDING","Liste des DNS des sites de crowdfounding");
+
+define("REDBOX_TO_CLEAN_IN_URLS","Liste des éléments à nettoyer des URL");
+
+define("REDBOX_SUB_REPLACE_SOURCE","Liste des signatures de source à nettoyer dans le texte importé de Facebook");
+
+define("REDBOX_TO_CLEAN_IN_TITLES","Liste des éléments à nettoyer dans les titres importés");
+
+define("REDBOX_TO_CLEAN_IN_TEXTS","Liste des éléments à nettoyer dans les textes importés de Facebook");
 
 define("REDBOX_FACEBOOK_APPID_LABEL","App Id");
 

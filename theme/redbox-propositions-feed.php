@@ -8,10 +8,10 @@ $sections = array();
 $login_classes='';
 foreach($redbox->configuration->categories as $type=>$category){
 	$login_classes.= " ".suppr_specialchar(suppr_accents($category));
-	$sections[suppr_specialchar(suppr_accents($category))]= array('name'=> $category,'count'=>0);
+	$sections[suppr_specialchar(suppr_accents($category))]= array('name'=> $category,'count'=>0,'type'=> $type);
 }
 // HACK TO SUPPORT OLD "photos" category
-$sections['Photos']= array('name'=>'Photos','count'=>0);
+$sections['Photos']= array('name'=>'Photos','count'=>0,'slug'=>'picture');
 ?>
 
 <div id="comments-wrapper clearfix">
@@ -38,32 +38,19 @@ $sections['Photos']= array('name'=>'Photos','count'=>0);
 	else{
 		$connect = '<div class="redbox_login redbox_item four columns'.$login_classes.'" id="redbox-item-connect">'.do_shortcode('[widget classname="LoginWithAjaxWidget" instance="title=Vous devez être connecté pour participer."]').'</div>';
 	}
-
-	if ( have_comments() ) :  ?>
-
-	<?php if ( get_comment_pages_count() > 1 && get_option( 'page_comments' ) ) : // Are there comments to navigate through? ?>
-		<div class="comments-navigation clearfix">
-			<div class="next-comments"><?php previous_comments_link('Propositions plus récentes') ?></div>
-			<div class="prev-comments"><?php next_comments_link('Propositions plus anciennes') ?></div>
-		</div>
-	<?php endif; // check for comment navigation ?>
-
-
-	<?
-	
+	$prev_link = "";
+	$next_link ="";
+	if ( have_comments() ) :  
 	
 	$redbox_container = '<div class="container" style="margin-left:-15px;">';
 	$redbox_container.= '<div id="redbox_container">';
 
 
 	$nb_com_pp = intval(get_query_var('comments_per_page'));
-	$nb_com_pp = "10";
+	//$nb_com_pp = "10";
 	$page = intval(get_query_var('cpage'));
-	
-	$sql = "SELECT comment_ID FROM " . $wpdb->prefix .'comments WHERE comment_post_ID='.$post->ID.' ';
-	
-	
 	$user = wp_get_current_user();
+	$sql = "SELECT comment_ID FROM " . $wpdb->prefix .'comments WHERE comment_post_ID='.$post->ID.' ';
 	$sql.= 'AND (comment_approved="1" OR comment_approved=1 ';
 	if ($user->ID){
 		$sql.= 'OR (comment_approved NOT LIKE "trash" AND user_id='.$user->ID.')';
@@ -75,7 +62,7 @@ $sections['Photos']= array('name'=>'Photos','count'=>0);
 	$nb_com = count($rows);
 	if ($page == 0) {
 		$start = 1;
-		$stop = $nb_com;
+		$stop = $nb_com_pp;
 	}
 	else{
 		$start = 1 + ( $nb_com_pp * ($page - 1));
@@ -86,6 +73,14 @@ $sections['Photos']= array('name'=>'Photos','count'=>0);
 	if (!$stop || $stop > $nb_com) $stop=$nb_com;
 	
 	//echo $page."-".$nb_com_pp."-".$nb_com."-".$start."-".$stop;
+	
+	if ( get_comment_pages_count() > 1 && get_option( 'page_comments' ) ){
+		if ($page != 1)
+			$prev_link = get_permalink()."comment-page-".($page - 1);
+		if ($page != get_comment_pages_count())
+		$next_link = get_permalink()."comment-page-".($page + 1);
+	}
+	
 	$comments_ids = array();
 	for ($i=$start;$i<=$stop;$i++){
 		$exists = false;
@@ -162,22 +157,22 @@ $sections['Photos']= array('name'=>'Photos','count'=>0);
 	$redbox_container.= $redbox_lines;
 	$redbox_container.= '</div>';
 	$redbox_container.= '</div>';
-
-
+	//if (trim($prev_link)!='') $redbox_filter.= '<div class="redbox_navigation"><a href="'.$prev_link.'">>Propositions plus récentes</a></div>';
 	$redbox_filter = '<section id="options" class="clearfix">';
 	$redbox_filter.= '<ul id="redbox-filters" class="option-set clearfix" data-option-key="filter">';
-
-	
 	//
-	$redbox_filter.= '<li><a class="current" href="#filter" data-option-value="*">'.__('Tout','mthemes').'<span class="post-count">'.count($comments_ids).'</span></a></li>';
+	$redbox_filter.= '<li><a href="#filter" id="view_all" data-option-value="*">'.__('Tout','mthemes').'<span class="post-count">'.count($comments_ids).'</span></a></li>';
 	foreach($sections as $slug => $section) {
 		if ($section['count']>0){
-			$redbox_filter.= '<li><a href="#filter" data-option-value=".'.$slug.'">'.$section['name'].'<span class="post-count">'.$section['count'].'</span></a></li>';
+			$redbox_filter.= '<li><a href="#filter" data-option-value=".'.$slug.'"><i class="'.$redbox->blog->redbox_get_icon_for($section['type'])
+.'"></i> '.$section['name'].'<span class="post-count">'.$section['count'].'</span></a></li>';
 		}
 	}
+
+	
 	$redbox_filter.= '</ul>';
 	$redbox_filter.= '</section>';
-
+	//if (trim($next_link)!='') $redbox_filter.= '<div class="redbox_navigation"><a href="'.$next_link.'">Propositions plus anciennes</a></div>';
 
 	echo '</div>';
 	echo $redbox_filter;
@@ -187,7 +182,7 @@ $sections['Photos']= array('name'=>'Photos','count'=>0);
 	
 
 	<script>
-		jQuery(document).ready(function($) {
+	jQuery(document).ready(function($) {
 		 $(function(){
 		  
 		  var $container = $('#redbox_container');
@@ -225,9 +220,12 @@ $sections['Photos']= array('name'=>'Photos','count'=>0);
 			  // otherwise, apply new options
 			  $container.isotope( options );
 			}
-		
+	
 			return false;
 		  });
+		  
+		  btn = $("#view_all");
+		  btn.delay(2000).queue(function(){$(this).click().dequeue();});
 		});
 	});
 	</script>

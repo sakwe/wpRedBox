@@ -16,7 +16,7 @@
 	max-width:950px;
 }
 
-#redbox_info_config , #redbox_wp_config{
+#redbox_info_config , #redbox_wp_config, #redbox_wp_options{
 	border:solid 1px #5A91B1;
 	background-color:#E0F1FF;
 	max-width:900px;
@@ -24,7 +24,7 @@
 	margin-top:20px;
 }
 
-#redbox_info_fb_config , .redbox_info_fb_import , #redbox_wp_config{
+#redbox_info_fb_config , .redbox_info_fb_import , #redbox_wp_config, #redbox_wp_options{
 	border:solid 1px #5A91B1;
 	background-color:#FFFF99;
 	max-width:900px;
@@ -34,11 +34,11 @@
 	
 }
 
-#redbox_facebook_options li , #redbox_wordpress_options li{
+#redbox_facebook_options li , #redbox_wordpress_options li , #redbox_import_options li{
 	vertical-align:top;
 }
 
-#redbox_facebook_options li span , #redbox_wordpress_options li span{
+#redbox_facebook_options li span , #redbox_wordpress_options li span , #redbox_import_options li span{
 	display:inline-block;
 	width:250px !important;
 	font-weight:bold;
@@ -46,11 +46,11 @@
 	margin-left:10px;
 }
 
-#redbox_facebook_options li input , #redbox_wordpress_options li input{
+#redbox_facebook_options li input , #redbox_wordpress_options li input , #redbox_import_options li input{
 	width:300px;
 }
 
-#redbox_facebook_options li textarea , #redbox_wordpress_options li textarea{
+#redbox_facebook_options li textarea , #redbox_wordpress_options li textarea , #redbox_import_options li textarea{
 	width:650px;
 	height:150px;
 }
@@ -75,7 +75,6 @@
 
 
 .working_action_box{
-
 }
 
 .working_action_box_content{
@@ -300,12 +299,15 @@
 
 
 /* redbox !colors */
-#redbox-filters a{
+
+
+#redbox-filters a, .redbox_navigation a{
 	background: #f2f2f2;
 	color: #888888;
 }
 #redbox-filters a:hover,
-#redbox-filters a.current{
+#redbox-filters a.current,
+.redbox_navigation a:hover{
 	color: #ffffff;
 	background: #d31d1d;
 }
@@ -322,6 +324,8 @@ ul#redbox-filters {display: block;width: 100%;margin:0px;padding:10px 0px 30px 0
 #redbox-filters li {display: inline-block; margin: 0px 20px 0px 0px;}
 #redbox-filters a {border-bottom: 0; text-align: center; display: block;padding:10px 0px 10px 10px; }
 #redbox-filters a span.post-count {padding:10px 10px 10px 10px;margin-left:5px;}
+.redbox_navigation{display:inline-block; margin: 0px 20px 0px 0px;clear:none;float:right;}
+.redbox_navigation a{border-bottom: 0; text-align: center; padding:10px 0px 10px 10px;}
 
 table.redbox_import_pannel{
 	max-width:900px;

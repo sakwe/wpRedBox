@@ -1,6 +1,8 @@
 var canceled=false;
 
-function redbox_action_ajax_callback(data){
+function redbox_action_ajax_callback(data,status_divID){
+	if (!status_divID) status_divID = "redbox_status";
+	status_divID = "#"+status_divID;
 	jQuery(document).ready(function($) {
 		$.post(ajaxurl, data, function(response) {
 			if(!canceled){
@@ -14,12 +16,12 @@ function redbox_action_ajax_callback(data){
 					$("#"+ data['redbox_ajax_working_action'] + "_"+data['redbox_ajax_id']).html(response);
 				}
 				else{
-					$("#redbox_status").html(response);
+					$(status_divID).html(response);
 				}
 			}
 			else{
 				response = null;
-				$("#redbox_status").html('');
+				$(status_divID).html('');
 			}
 		});
 	});
@@ -27,6 +29,11 @@ function redbox_action_ajax_callback(data){
 
 function redbox_ajax_do(action,id,with_waiting,without_message){
 	if (action){
+		if (action=="redbox_submit_from_admin_widget") {
+			status_divID = "redbox_widget_status";
+		} else {
+			status_divID = "redbox_status";
+		}
 		canceled=false;
 		if (with_waiting){
 			if (!without_message){
@@ -53,11 +60,11 @@ function redbox_ajax_do(action,id,with_waiting,without_message){
 				redbox_ajax_id:id
 			};
 		}
-		redbox_action_ajax_callback(data);
+		redbox_action_ajax_callback(data,status_divID);
 	}
 	else{
 		canceled = true;
-		document.getElementById("redbox_status").innerHTML='';
+		document.getElementById(status_divID).innerHTML='';
 	}
 }
 

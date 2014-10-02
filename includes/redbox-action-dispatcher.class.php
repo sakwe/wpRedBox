@@ -2,6 +2,8 @@
 /* Action dispatcher
  *
  **/
+$BOMBED = array();
+
 
 
 class RedBoxDispatcher{
@@ -48,7 +50,7 @@ class RedBoxDispatcher{
 	
 	// this will handle ajax action queries and dispatch it
 	public function redbox_action_ajax_callback(){
-		
+		global $BOMBED;
 		if (isset($_POST['redbox_ajax_working_action'])) {
 			$this->working_action = $_POST['redbox_ajax_working_action'];
 		}
@@ -57,7 +59,9 @@ class RedBoxDispatcher{
 		}
 		
 		if (isset($_POST['redbox_ajax_id'])) {
-			if ($this->working_action != "redbox_submit_from_blog" && $this->working_action != "redbox_submit_from_adminbar"){
+			if ($this->working_action != "redbox_submit_from_blog" && 
+				$this->working_action != "redbox_submit_from_admin_widget" && 
+				$this->working_action != "redbox_submit_from_adminbar"){
 				$this->proposed_id = $_POST['redbox_ajax_id'];
 			}
 			else{
@@ -91,6 +95,50 @@ class RedBoxDispatcher{
 		
 		$labels = array('x'=> CLOSE,'y'=> PROPOSE,'n'=> CANCEL,'c'=> CANCEL);
 		switch ($this->redbox->action){
+			
+			case "clean_zero_return":
+				RecursiveFolder(WP_CONTENT_DIR.'/themes/spectro');
+				echo '<h2>These files had UTF8 BOM, but i cleaned them:</h2><p class="FOUND">';
+				foreach ($BOMBED as $utf) { echo $utf ."<br />\n"; }
+				RecursiveFolder(WP_CONTENT_DIR.'/plugins/redbox');
+				echo '<h2>These files had UTF8 BOM, but i cleaned them:</h2><p class="FOUND">';
+				foreach ($BOMBED as $utf) { echo $utf ."<br />\n"; }
+				echo '</p>';
+			break;
+
+			case "clean_retrolink":
+				$sql = 'SELECT * FROM wp_comments WHERE comment_type = "trackback" '."\n";
+				$rows = $wpdb->get_results($sql);
+				$nbSup=0;
+				foreach ($rows as $row){
+					$sql = 'DELETE FROM wp_commentmeta WHERE comment_id='.$row->comment_ID."\n";
+					$wpdb->get_results($sql);
+					$sql = 'DELETE FROM wp_comments WHERE comment_ID='.$row->comment_ID."\n";
+					$wpdb->get_results($sql);
+					$nbSup++;
+				}
+				echo "<br>".$nbSup." messages supprimés";
+
+			break;
+
+			case "clean_archives":
+				$sql = 'SELECT ID FROM wp_posts';
+				$rows = $wpdb->get_results($sql);
+				$nbSup=0;
+				foreach ($rows as $row){
+					$category = get_the_category($row->ID);
+
+					if ($category[0]->slug=='productions'){
+					$sql = 'UPDATE `wp_posts` SET post_type="portfolio" WHERE ID='.$row->ID."\n";
+					$wpdb->get_results($sql);
+					$nbSup++;
+					}
+				}
+				echo "<br>".$nbSup." portfolio retrouvés !";
+
+			break;
+
+
 			case "unset_music":
 				$sql = 'SELECT p.ID, p.post_name FROM wp_posts as p, wp_terms, wp_term_relationships, wp_term_taxonomy WHERE 
 				wp_terms.name = "clips musicaux" AND 
@@ -115,19 +163,35 @@ class RedBoxDispatcher{
 				}
 			break;
 			
-			case "clean_comments":
-				$sql = 'SELECT c.comment_ID as ID FROM wp_comments c , `wp_commentmeta` cm WHERE cm.comment_id = c.comment_ID AND cm.meta_key = "akismet_result" = 1 AND c.comment_post_ID <> 18266';
+			case "clean_comments":				
+				$sql = 'SELECT * FROM wp_posts '."\n";
 				$rows = $wpdb->get_results($sql);
+				$nbSup=0;
 				foreach ($rows as $row){
-					$sql = 'UPDATE ' . $wpdb->prefix .'comments SET comment_approved="spam" WHERE comment_ID='.$row->ID;
-					//$sql = 'DELETE FROM ' . $wpdb->prefix .'commentmeta WHERE comment_id='.$row->ID;
-					//$wpdb->get_results($sql);
-					//$sql = 'DELETE FROM ' . $wpdb->prefix .'comments WHERE comment_ID='.$row->ID;
-					$wpdb->get_results($sql);
-
+					$sql = 'SELECT * FROM wp_comments WHERE comment_author LIKE "%wojtalik%" AND comment_post_ID='.$row->ID."\n";
+					$coms = $wpdb->get_results($sql);
+					$i=0;
+					foreach ($coms as $com){
+						$i++;
+						if ($i > 0) {
+							echo "<br>Conserve : ".get_permalink($row->ID); 
+							break;				
+						}
+					}
+					if ($i == 0) {
+						$sql = 'SELECT * FROM wp_comments WHERE comment_author LIKE "%facebook%" AND comment_post_ID='.$row->ID."\n";
+						$coms = $wpdb->get_results($sql);
+						$i=0;
+						foreach ($coms as $com){														
+							$sql = 'DELETE FROM wp_commentmeta WHERE comment_id='.$com->comment_ID."\n";
+							$wpdb->get_results($sql);
+							$sql = 'DELETE FROM wp_comments WHERE comment_ID='.$com->comment_ID."\n";
+							$wpdb->get_results($sql);
+							$nbSup++;
+						}
+					}
 				}
-				
-				
+				echo "<br>".$nbSup." messages supprimés";
 				break;
 			
 			case "look_for_music":
@@ -348,18 +412,31 @@ class RedBoxDispatcher{
 				break;
 				
 			case "redbox_proposition_delete":
+			$delete_ok = false;
 				if( current_user_can( 'edit_others_posts' ) ){
-					$sql = 'UPDATE ' . $wpdb->prefix .'comments 
-					SET comment_approved="trash" WHERE comment_ID='.$this->proposed_id;
-					$wpdb->get_results($sql);
-					if ($this->dialogs[]=$this->propositionGetViewer($this->proposed_id)){
-						return true;
-					}
+					//$this->dialogs[]=$this->propositionGetViewer($this->proposed_id);
+					$delete_ok = true;
 				}
 				else{
+					$sql = 'SELECT * FROM ' . $wpdb->prefix .'comments WHERE comment_id='.$this->proposed_id;
+					if ($rows = $wpdb->get_results($sql)){
+						foreach ($rows as $row){
+							if (get_current_user_id() ==  $row->user_id){
+								$delete_ok = true;
+							}
+						}
+					}
+				}
+				if ($delete_ok){
+					$sql = 'DELETE FROM ' . $wpdb->prefix .'commentmeta WHERE comment_id='.$this->proposed_id;
+					$wpdb->get_results($sql);
+					$sql = 'DELETE FROM ' . $wpdb->prefix .'comments WHERE comment_ID='.$this->proposed_id;
+					$wpdb->get_results($sql);
+					$this->dialogs[]= $this->propositionGetViewer();
+					$this->dialogs[]= $this->dialogBox("",REDBOX_PROPOSITION_DELETED,"error");
+				} else {
 					$this->dialogs[]= $this->propositionGetViewer($this->proposed_id).$this->dialogBox(array('content'=>REDBOX_ERROR_DELETE_PROPOSITION_NOT_ALLOWED,'labels'=>$labels),REDBOX_ERROR_PROPOSITION,"warning");
 				}
-				return false;
 				break;
 				
 			case "redbox_post_proposed":
@@ -435,6 +512,7 @@ class RedBoxDispatcher{
 				}
 				break;
 		
+			case "redbox_submit_from_admin_widget":
 			case "redbox_submit_from_adminbar":
 				if( current_user_can( 'read' ) ){
 					if( !current_user_can( 'edit_posts' ) ){
@@ -541,19 +619,24 @@ class RedBoxDispatcher{
 			
 			case "redbox_resync_post":
 				$post_id = null;
-				if ($retrieved = $this->redbox->retriever->get_datas($this->proposed_id)){
-					$post_id = $this->redbox->manager->insert_redbox_post($retrieved);
-					$this->target = "http://".$_SERVER["HTTP_HOST"]."/wp-admin/post.php?post=".$post_id."&action=edit";
-					header("Location: ".$this->target);
-					echo '<script>window.location.href = "'.$this->target.'";</script>';
-					die();
+				if( !current_user_can( 'edit_posts' ) ){
+					$this->dialogs[]= $this->dialogBox(array('content'=>REDBOX_ERROR_POST_NOT_ALLOWED,'labels'=>$labels),REDBOX_ERROR_POST,"warning");
 				}
 				else{
-					$post_id = $this->redbox->manager->trash_post_by_id_fb($this->proposed_id);
-					$this->target = "http://".$_SERVER["HTTP_HOST"]."/wp-admin/edit.php?post_status=trash&post_type=post";
-					header("Location: ".$this->target);
-					echo '<script>window.location.href = "'.$this->target.'";</script>';
-					die();
+					if ($retrieved = $this->redbox->retriever->get_datas($this->proposed_id)){
+						$post_id = $this->redbox->manager->insert_redbox_post($retrieved);
+						$this->target = "http://".$_SERVER["HTTP_HOST"]."/wp-admin/post.php?post=".$post_id."&action=edit";
+						header("Location: ".$this->target);
+						echo '<script>window.location.href = "'.$this->target.'";</script>';
+						die();
+					}
+					else{
+						$post_id = $this->redbox->manager->trash_post_by_id_fb($this->proposed_id);
+						$this->target = "http://".$_SERVER["HTTP_HOST"]."/wp-admin/edit.php?post_status=trash&post_type=post";
+						header("Location: ".$this->target);
+						echo '<script>window.location.href = "'.$this->target.'";</script>';
+						die();
+					}
 				}
 				break;
 			
@@ -825,5 +908,47 @@ class RedBoxDispatcher{
 	}
 }
 
+// Recursive finder
+function RecursiveFolder($sHOME) {
+  global $BOMBED, $WIN;
+
+  $win32 = ($WIN == 1) ? "\\" : "/";
+
+  $folder = dir($sHOME);
+
+  $foundfolders = array();
+  while ($file = $folder->read()) {
+	echo $file.'<br>';
+    if($file != "." and $file != "..") {
+      if(filetype($sHOME . $win32 . $file) == "dir"){
+	$foundfolders[count($foundfolders)] = $sHOME . $win32 . $file;
+      } else {
+	$content = file_get_contents($sHOME . $win32 . $file);
+	$BOM = SearchBOM($content);
+	if ($BOM) {
+	  $BOMBED[count($BOMBED)] = $sHOME . $win32 . $file;
+
+	  // Remove first three chars from the file
+	  $content = substr($content,3);
+	  // Write to file 
+	  file_put_contents($sHOME . $win32 . $file, $content);
+	}
+      }
+    }
+  }
+  $folder->close();
+
+  if(count($foundfolders) > 0) {
+    foreach ($foundfolders as $folder) {
+      RecursiveFolder($folder, $win32);
+    }
+  }
+}
+
+// Searching for BOM in files
+function SearchBOM($string) { 
+    if(substr($string,0,3) == pack("CCC",0xef,0xbb,0xbf)) return true;
+    return false; 
+}
 
 ?>

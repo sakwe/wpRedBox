@@ -196,7 +196,30 @@ class RedBoxDataManager{
 			if (!(stripos($datas->description,"<!--more-->") > 0)){
 				$datas->description="VOTRE TEXTE ICI<br />\n\n<!--more--><br />".$datas->description;
 			}
-		
+			else {
+				$phrases = explode("\n",$datas->description);
+				if (count($phrases)>1){
+					$afterMore = "";
+					if (str_word_count($phrases[0]) < 30) {
+						$beforeMore = "";
+						foreach($phrases as $phrase) {
+							if (str_word_count($beforeMore) < 30) {
+								$beforeMore.= $phrase."\n";
+							} else {
+								$afterMore.= $phrase."\n";
+							}
+						} 
+					} else { 
+						$beforeMore = $phrases[0];
+						$afterMore = str_replace($beforeMore,"",$datas->description);
+					}
+					$datas->description = $beforeMore."<br />\n\n<!--more--><br />".$afterMore;
+					
+				}
+				else{
+
+				}
+			}
 			// set main datas for the post in draft mode before (will publish it after meta datas settings)
 			$slug = suppr_specialchar(suppr_accents($datas->title));
 			$the_post = array(
@@ -207,7 +230,8 @@ class RedBoxDataManager{
 				'post_title' => $datas->title,
 				'post_type' => $post_type,
 				'post_content' => $datas->description,
-				'post_date' => $datas->created
+				'post_date' => $datas->created,
+				'ping_status' => 'closed'
 			);
 
 			if ($datas->fb_id != ''){
@@ -272,15 +296,20 @@ class RedBoxDataManager{
 			for ($i=0;$i<=(count($datas->pictures)-1);$i++){
 				if ($i==0) $thumb=true;else $thumb=false;
 				$picture = $datas->pictures[$i];
-				if (trim($picture->title)!='') $pict_title = $picture->title;
-				else $pict_title = $datas->title;
-				$id = $this->download_image($picture->url, $postID,$pict_title,$thumb);
-				if (!is_wp_error($id)){
-					if ($datas->type == 'gallery' && $id) $l_photos.= $id.',';
-					if ($picture->in_gallery && $id) $l_gallery.= $id.',';
+				if (trim($picture->url)!=''){
+					if (trim($picture->title)!='') $pict_title = $picture->title;
+					else $pict_title = $datas->title;					
+					$id = $this->download_image($picture->url, $postID,$pict_title,$thumb);
+					if (!is_wp_error($id)){
+						if ($datas->type == 'gallery' && $id) $l_photos.= $id.',';
+						if ($picture->in_gallery && $id) $l_gallery.= $id.',';
+					} else {
+					
+						//echo "ERRRRROOOOOOOORRRR!";
+					}
 				}
 			}
-		
+			//exit;
 			// complete the post content if we have a gallery in
 			if ($l_gallery!=''){
 				$gallery_content = '[gallery link="file" columns="3" type="rectangular" ids="'.$l_gallery.'"]'."\n";
@@ -329,6 +358,7 @@ class RedBoxDataManager{
 			}
 			$fb_text = br2nl($fb_text);
 			$fb_text = strip_tags($fb_text);
+			$fb_text.= "\n\n" . $this->redbox->configuration->fb_post_sign;
 			update_post_meta($postID, "al2fb_facebook_excerpt", $fb_text);
 			update_post_meta($postID, "al2fb_facebook_text", $fb_text);
 			update_post_meta($postID, "_wpas_mess", $fb_text);
@@ -345,11 +375,13 @@ class RedBoxDataManager{
 				update_post_meta($postID, "al2fb_facebook_video",  $datas->source);
 				update_post_meta($postID, "al2fb_facebook_exclude_video", "1");
 			}
-		
-			if ($datas->pictures = "picture" && count($datas->pictures) >= 3){
-				//set_post_format($postID, 'gallery' );
-				wp_set_object_terms($postID, "post-format-gallery", "post_format");
+			
+			foreach ($list_datas as $d){
+				if ($d->type == "picture" && count($d->pictures) >= 4){
+					wp_set_object_terms($postID, "post-format-gallery", "post_format");
+				}
 			}
+			
 			$this->set_redbox_post_datas($postID,$list_datas);
 			// if we've got a date for the published post
 			if ($datas->created != ''){
@@ -381,7 +413,7 @@ class RedBoxDataManager{
 			$content = explode('<!--more-->',$post->post_content);
 			$fb_text = strip_tags($content[0]);
 			$fb_text = strip_tags($fb_text);
-			$fb_text.= "\n" . "Infos & Débats sur Mr Mondialisation" . $fb_text;
+			$fb_text.= "\n\n" . $this->redbox->configuration->fb_post_sign;
 			update_post_meta($post->ID, "al2fb_facebook_excerpt", $fb_text);
 			update_post_meta($post->ID, "al2fb_facebook_text", $fb_text);
 			update_post_meta($post->ID, "_wpas_mess", $fb_text);
@@ -520,7 +552,7 @@ class RedBoxDataManager{
 			}
 		}
 		//die;
-		//if (count($clones)>0) return $clones;
+		if (count($clones)>0) return $clones;
 		if ($mode!='post' && $mode!='post_facebook'){
 			foreach ($urls as $url){
 				// check if we already have a proposition for the url
@@ -602,30 +634,39 @@ class RedBoxDataManager{
 
 	public function download_image($url, $post_id,$desc,$thumb=false) {
 		$file_array['name'] = urldecode(basename($url));
-		
+
 		// TODO : SUPPORT FALLBACK DL
-		$this->redbox->fallBack = false;
+		//$this->redbox->fallBack = false;
 		/////////////////////////////
 		
 		if (!$this->redbox->fallBack){
+			if (REDBOX_DEBUG==true) echo "<br>Try download " .$url. "... ";
 			$tmp = download_url($url);
 			$file_array['tmp_name'] = $tmp;
 		}
-		elseif ($this->redbox->configuration->fallBackUrl){
+		if ( is_wp_error( $tmp ) && $this->redbox->configuration->fallBackUrl){
 			// let's try a fallback...
+			if (REDBOX_DEBUG==true) echo "<br>Error ! Try fallback... ";
 			$tmp = $this->download_fallback($url);
 			$file_array['tmp_name'] = $tmp;
 		}
 		
 		if ( is_wp_error( $tmp ) ) {
+			if (REDBOX_DEBUG==true) echo "<br>Error when downloading the media.";
 			@unlink($file_array['tmp_name']);
 			$file_array['tmp_name'] = '';
+			return $id;			
 		}
-		
+		if ($debug) echo "<br>Downloaded ! let's handle the media in WP via RedBox ... ";
 		$id = $this->redbox_media_handle_sideload( $file_array, $post_id);//, $desc );
 		if ( is_wp_error($id) ) {
-			@unlink($file_array['tmp_name']);
-			return $id;
+			if (REDBOX_DEBUG==true) echo "<br>Error ! let's handle the media in WP native ... "; 
+			$id = media_handle_sideload( $file_array, $post_id);//, $desc );
+			if ( is_wp_error($id) ) {
+				if (REDBOX_DEBUG==true) echo "<br>Error ! Can not handle the media ". $url . "<br>- File : " . $file_array['tmp_name'];
+				@unlink($file_array['tmp_name']);
+				return $id;
+			}
 		}
 		if ($thumb) {
 			set_post_thumbnail($post_id, $id);
@@ -635,7 +676,15 @@ class RedBoxDataManager{
 	}
 	
 	public function download_fallback($url){
+		//echo "<br /><br /><br /><br /><br /><br /><br /><br /><br /><br />DOWNLOAD FALLBACK : ".$url."<br /><br /><br /><br /><br /><br /><br /><br /><br /><br />";
+		  
 		  $path = wp_tempnam($url);
+
+		  file_put_contents($path, file_get_contents($this->redbox->configuration->fallBackUrl.'?url='.$url));
+		  if (filesize($path) > 0) return $path;else return false;
+		  
+		  ##################################""
+		  # OLD CODE BYPASSED
 		  # open file to write
 		  $fp = fopen ($path, 'w+');
 		  # start curl
@@ -650,13 +699,15 @@ class RedBoxDataManager{
 		  # write data to local file
 		  curl_setopt( $ch, CURLOPT_FILE, $fp );
 		  # execute curl
-		  curl_exec( $ch );
+		  curl_exec($ch);
 		  # close curl
 		  curl_close( $ch );
 		  # close local file
 		  fclose( $fp );
-
-		  if (filesize($path) > 0) return $path;
+		  
+		  //echo filesize($path);
+		  
+		  if (filesize($path) > 0) return $path;else return false;
 	}
 	
 	public function download_url( $url, $timeout = 300 ) {
@@ -698,19 +749,25 @@ class RedBoxDataManager{
 	 */
 	
 	public function redbox_media_handle_sideload($file_array, $post_id, $desc = null, $post_data = array()) {
-		$overrides = array('test_form'=>false);
-	
-		$file = wp_handle_sideload($file_array, $overrides);
-		if ( isset($file['error']) )
-		return new WP_Error( 'upload_error', $file['error'] );
-	
+		$overrides = array('test_form'=>false,'test_size'=>false,'test_type'=>true,'test_upload'=>false);		
+		if (REDBOX_DEBUG==true) echo "Trying handle file ... ";
+		$file = wp_handle_sideload($file_array,$overrides);
+		if ( isset($file['error']) ) {
+			if (REDBOX_DEBUG==true) echo "<br>Error with 'wp_handle_sideload' : ".$file['error'];
+			if (REDBOX_DEBUG==true) echo "<br>Trying to force type to image ...";
+			$file_array['name']= $file_array['name'].".jpg";
+			$file = wp_handle_sideload($file_array,$overrides);
+			if ( isset($file['error']) ) {
+				return new WP_Error( 'upload_error', $file['error'] );
+			}
+		}
+		if (REDBOX_DEBUG==true) echo "Media sideloaded ! ";
 		$url = $file['url'];
 		$type = $file['type'];
 		$file = $file['file'];
 		$title = preg_replace('/\.[^.]+$/', '', basename($file));
 		$content = '';
-	
-	
+		
 		if ( isset( $desc ) )
 		$title = $desc;
 	
@@ -725,7 +782,7 @@ class RedBoxDataManager{
 	
 		// This should never be set as it would then overwrite an existing attachment.
 		if ( isset( $attachment['ID'] ) )
-		unset( $attachment['ID'] );
+			unset( $attachment['ID'] );
 	
 		// Save the attachment metadata
 		$id = wp_insert_attachment($attachment, $file, $post_id);
