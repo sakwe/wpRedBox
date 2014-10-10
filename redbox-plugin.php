@@ -52,8 +52,9 @@ includeFiles($files, $redbox_dir);
 function includeFiles ($files, $currentPath='') {
 	foreach ($files as $include) {
 		if ($include != '.' && $include != '..') { // ignores self and parent directory
-			$newPath = $currentPath . $include . '/';
+			$newPath = $currentPath . $include;
 			if (is_dir($newPath)) { // if a directory, re-run function to get directory contents
+				$newPath.='/';
 				$files = scandir($newPath);
 				includeFiles($files, $newPath);
 			} else {
