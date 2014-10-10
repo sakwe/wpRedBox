@@ -29,6 +29,8 @@ class RedBoxBlog{
 		add_action('pre_get_comments',array(&$this,'redbox_comment_filter'));
 		
 		add_action('init', array(&$this,'habfna_disable_admin_bar'), 9);
+		
+
 	}
 	
 	
@@ -46,6 +48,7 @@ class RedBoxBlog{
 		</script>
 		<?php
 	}
+	
 	
 	
 	public function habfna_hide_admin_bar_settings(){
@@ -77,7 +80,6 @@ class RedBoxBlog{
 		$datas = $this->redbox->retriever->get_proposed_import();
 		
 		$proposition_content.= '<div class="proposition_content" id="proposition_content">'."\n";
-		
 		if(trim($datas->author_name)!='') {
 			$proposition_content.= '<div class="data_author">';
 			if(trim($datas->author_url)!='') $proposition_content.=  '<a href="' . $datas->author_url .'">'.$datas->author_name.'</a>';
@@ -144,8 +146,13 @@ class RedBoxBlog{
 		
 		$proposition_content.= '<div class="clear"></div>';
 		
-		$proposition_content.= '</div></div>';
-
+		$proposition_content.= '</div>';
+		
+		//$proposition_content.= '</div>';
+		if (trim($this->redbox->configuration->redbox_shortcode_to_add)!=''){
+			$proposition_content.= '<style>.messi-footbox{float:right;width:350px;margin-top:-65px;}</style><div class="redbox_added_shortcode" style="width:350px;height:53px;margin-top:3px;fload:left;clear:none;">'.do_shortcode(stripslashes($this->redbox->configuration->redbox_shortcode_to_add)).'</div>';
+		}
+		
 		$code = '<script>
 				function redbox_load_dialogs(){
 					jQuery(document).ready(function($) {
@@ -473,7 +480,7 @@ class RedBoxBlog{
 					}
 					break;
 			}
-		} elseif (get_current_user_id() && get_current_user_id() ==  $comment->user_id){
+		} elseif (get_current_user_id() && ($mode != 'post_to_redbox') && ((get_current_user_id() ==  $comment->user_id) || current_user_can( 'edit_posts' ))){
 			$mini_viewer.= '<input type="button" 
 					onclick="redbox_ajax_do(\'redbox_proposition_delete\',\''.$comment->comment_ID.'\')" 
 					class="redbox_button redbox_button-danger" value="';
@@ -699,7 +706,7 @@ class RedBoxBlog{
 	public function enqueue_wp_scripts() {
 		wp_enqueue_script( 'jquery', 'http://code.jquery.com/jquery-1.9.1.min.js' );
 		wp_enqueue_script( 'wp_redbox_importer_admin', WP_PLUGIN_URL.'/redbox/js/importer.jquery.js' );
-		wp_register_style( 'redbox-style', WP_PLUGIN_URL."/redbox/css/redbox.css");
+		wp_register_style( 'redbox-style', WP_PLUGIN_URL."/redbox/css/redbox.css",null,time());
 		wp_enqueue_style( 'redbox-style' );
 		wp_register_style( 'redbox-blog-style', WP_PLUGIN_URL."/redbox/css/redbox-blog.css");
 		wp_enqueue_style( 'redbox-blog-style' );
@@ -716,7 +723,7 @@ class RedBoxBlog{
 		wp_register_style( 'redbox-nailthumb-style', WP_PLUGIN_URL."/redbox/css/jquery.nailthumb.min.css");
 		wp_enqueue_style( 'redbox-nailthumb-style' );
 		wp_enqueue_script( 'redbox-messi-dialog', WP_PLUGIN_URL.'/redbox/js/messi.min.js' );
-		wp_enqueue_script( 'redbox-dispatcher', WP_PLUGIN_URL.'/redbox/js/redbox-dispatcher.js' );
+		wp_enqueue_script( 'redbox-dispatcher', WP_PLUGIN_URL.'/redbox/js/redbox-dispatcher.js',null,time() );
 		wp_enqueue_script( 'redbox-tabs', WP_PLUGIN_URL.'/redbox/js/activatables.js' );
 		//wp_enqueue_script( 'redbox-masonry', WP_PLUGIN_URL.'/redbox/js/masonry.js' );
 		wp_enqueue_script( 'redbox-isotope', WP_PLUGIN_URL.'/redbox/js/jquery.isotope.min.js' );

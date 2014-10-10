@@ -11,6 +11,7 @@ class RedBoxDispatcher{
 	public function __construct(&$redbox){
 		$this->redbox = $redbox;
 		$this->redbox->action = null;
+		$this->proposed_id = null;
 		// check for action from http if none for constructor
 		if (isset($_GET['redbox_action']) && $_GET['redbox_action']!='') 
 			$this->redbox->action = $_GET['redbox_action'];
@@ -36,8 +37,13 @@ class RedBoxDispatcher{
 			
 		// get the proposed id
 		if (isset($_GET['comment_id'])) $this->proposed_id = $_GET['comment_id'];
-		
+		elseif (isset($_POST['comment_id'])) $this->proposed_id = $_POST['comment_id'];
+		elseif (isset($_SESSION['comment_id'])) $this->proposed_id = $_SESSION['comment_id'];
+		if ($this->proposed_id !=null) $_SESSION['comment_id'] = $this->proposed_id;
+				
 		// get the url(s) (+message) to import 
+		if (isset($_GET['url_to_import']) && $_GET['url_to_import']!='') 
+			$this->url_to_import = $_GET['url_to_import'];
 		if (isset($_POST['url_to_import'])) $this->url_to_import = $_POST['url_to_import'];
 		
 		// load the action code if some action to execute
@@ -96,6 +102,25 @@ class RedBoxDispatcher{
 		$labels = array('x'=> CLOSE,'y'=> PROPOSE,'n'=> CANCEL,'c'=> CANCEL);
 		switch ($this->redbox->action){
 			
+			case "xmpp_test_proposition" : 
+				$this->redbox->xmpp->send_notification_for_proposition($this->redbox->dispatcher->proposed_id);
+			
+			break;
+			
+			case "xmpp_test_comment" : 
+				$this->redbox->xmpp->send_notification_for_comment($this->redbox->dispatcher->proposed_id);
+			
+			break;
+			
+			case "diaspora_test_post" : 
+				$this->redbox->diaspora->setProtocol("https");
+				$this->redbox->diaspora->setId("mondi@mondiaspora.org");
+				$this->redbox->diaspora->setPassword("pogomonkey");
+				$this->redbox->diaspora->setMessage("Coucou !");
+				echo $this->redbox->diaspora->postToDiaspora();
+				exit;
+			break;
+			
 			case "clean_zero_return":
 				RecursiveFolder(WP_CONTENT_DIR.'/themes/spectro');
 				echo '<h2>These files had UTF8 BOM, but i cleaned them:</h2><p class="FOUND">';
@@ -104,6 +129,55 @@ class RedBoxDispatcher{
 				echo '<h2>These files had UTF8 BOM, but i cleaned them:</h2><p class="FOUND">';
 				foreach ($BOMBED as $utf) { echo $utf ."<br />\n"; }
 				echo '</p>';
+			break;
+
+			case "fix_readmore":
+				echo "<br>*************************** fix_readmore ****************************<br>";
+				$sql = 'SELECT * FROM ' . $wpdb->prefix .'posts WHERE post_status="publish" AND post_type="post" AND post_date>="2012-01-01" ORDER BY post_date DESC';
+				$rows = $wpdb->get_results($sql);
+				$i=0;
+				foreach ($rows as $row){
+					$description = $row->post_content;
+					echo "<br>________________________________________________________________<br>";
+					$description = str_replace("<br /><!--more--><br />\n","\n",$description);
+					$description = str_replace("\n<br /><!--more--><br />","\n",$description);
+					$description = str_replace("<br /><!--more--><br />","",$description);
+					$description = str_replace("<!--more-->\n","\n",$description);
+					$description = str_replace("\n<!--more-->","\n",$description);
+					$description = str_replace("<!--more-->","",$description);
+					$phrases = explode("\n",$description);
+					if (count($phrases)>0){
+						$afterMore = "";
+						if (str_word_count($phrases[0]) < 40) {
+							$beforeMore = "";
+							foreach($phrases as $phrase) {
+								if (str_word_count($beforeMore) < 40) {
+									$beforeMore.= $phrase."\n";
+								} else {
+									$afterMore.= $phrase."\n";
+								}
+							} 
+						} else { 
+							$beforeMore = $phrases[0];
+							$afterMore = str_replace($beforeMore,"",$description);
+						}
+						$description = $beforeMore."\n<!--more-->".$afterMore;
+					} else {
+						$description = $description."<!--more-->";
+					}
+					echo "<br>----------------------------------------------------------------<br>";
+					  $my_post = array(
+					      'ID'           => $row->ID,
+					      'post_content' => $description
+					  );
+					// Update the post into the database
+					  wp_update_post( $my_post );
+					echo "<br>________________________________________________________________<br>";
+					$i++;
+					//if ($i==60) break;
+				}
+				echo "<br>*************************** ".$i." readmore fixed in posts ! ****************************<br>";
+				exit;
 			break;
 
 			case "clean_retrolink":
@@ -291,6 +365,25 @@ class RedBoxDispatcher{
 					}
 				}
 				break;
+
+
+			case "redbox_check_for_link":
+				//$_SESSION["redbox_retrieved_queue"] = serialize($retrieved);
+				// retrieve data container for the link and 
+				$retrieved = $this->redbox->retriever->get_datas($this->url_to_import);
+				// get the viewer interface for datas we got
+				$viewer =  $this->redbox->blog->get_datas_proposed_viewer($retrieved);
+				// load the dialog box to the user
+				$labels = array('x'=> CLOSE,'y'=> '','n'=> '','c'=> '');
+				if( !current_user_can( 'read' ) ){
+					$this->dialogs[]= $this->dialogBox(array('content'=>REDBOX_ERROR_PROPOSITION_NOT_ALLOWED,'labels'=>$labels),REDBOX_ERROR_PROPOSITION,"warning");
+				}
+				else{
+					$this->dialogs[]= $this->dialogBox(array('content'=>$viewer['content'],'code'=>$viewer['code'],'labels'=>$labels),"Datas for link : ".$this->url_to_import,"info","");
+				}
+				//exit;
+				break;
+
 				
 			case "check_facebook":
 			case "check_facebook_forced":
@@ -380,12 +473,15 @@ class RedBoxDispatcher{
 			case "redbox_working_action_mini":
 				$this->dialogs[]= $this->workingMiniFor($this->working_action);
 				break;
+			
 				
 			case "redbox_proposition_approve":
 				if( current_user_can( 'edit_posts' ) ){
 					$sql = 'UPDATE ' . $wpdb->prefix .'comments 
 					SET comment_approved="1" WHERE comment_ID='.$this->proposed_id;
 					$wpdb->get_results($sql);
+					// Send the notification via XMPP 
+					$this->redbox->xmpp->send_notification_for_proposition($this->proposed_id);
 					if ($this->dialogs[]=$this->propositionGetViewer($this->proposed_id)){
 						return true;
 					}
@@ -442,7 +538,7 @@ class RedBoxDispatcher{
 			case "redbox_post_proposed":
 				// retrieve data container for the comment 
 				$sql = 'SELECT * FROM ' . $wpdb->prefix .'commentmeta WHERE comment_id='.$this->proposed_id.' AND meta_key="redbox_data_container"';
-				if ($rows = $wpdb->get_results($sql)){	
+				if ($rows = $wpdb->get_results($sql)){
 					$retrieved = unserialize(stripslashes($rows[0]->meta_value));
 					$this->redbox->retriever->list_datas = $retrieved; 
 					// keep the result in the session to use it in the next user loop
@@ -450,12 +546,25 @@ class RedBoxDispatcher{
 					// get the viewer interface for datas we got
 					$viewer =  $this->redbox->blog->get_datas_proposed_viewer($retrieved);
 					// load the dialog box to the user
-					$labels = array('x'=> CLOSE,'y'=> PUBLISH,'n'=> CANCEL,'c'=> CANCEL);
 					if( !current_user_can( 'edit_posts' ) ){
 						$this->dialogs[]= $this->dialogBox(array('content'=>REDBOX_ERROR_POST_NOT_ALLOWED,'labels'=>$labels),REDBOX_ERROR_POST,"warning");
 					}
 					else{
-						$this->dialogs[]= $this->dialogBox(array('content'=>$viewer['content'],'code'=>$viewer['code'],'labels'=>$labels),REDBOX_IMPORT_DIALOG,"yes_no","redbox_do_post");
+						if ($comment = get_comment($this->proposed_id)) {
+							switch ($comment->comment_approved){
+								case 'trash' : 
+									$value=RESTORE;
+									break;
+								case '1' : 
+									$value=DISAPPROVE;
+									break;
+								default : 
+									$value=APPROVE;
+									break;
+							}
+						}
+						$labels = array('x'=> CLOSE,'y'=> PUBLISH,'n'=> $value,'c'=> CANCEL);
+						$this->dialogs[]= $this->dialogBox(array('content'=>$viewer['content'],'code'=>$viewer['code'],'labels'=>$labels),REDBOX_IMPORT_DIALOG,"yes_no_cancel","redbox_do_post",',"'.$this->proposed_id.'","'.$comment->comment_approved.'"');
 					}
 				}
 				break;
@@ -648,6 +757,14 @@ class RedBoxDispatcher{
 				$this->target = "http://".$_SERVER["HTTP_HOST"]."/?p=".$this->proposed_id;
 				header("Location: ".$this->target);
 				break;
+				
+			case "redbox_auto_check_fb_posts" : 
+				$this->redbox->autoUpdate->redbox_auto_check_fb_posts();
+				break;
+			
+			case "redbox_auto_check_fb_feed" : 
+				$this->redbox->autoUpdate->redbox_auto_check_fb_feed();
+				break;
 			
 			default:
 				$this->dialogs[]= $this->dialogBox(REDBOX_ERROR_UNSUPPORTED_ACTION,REDBOX_ERROR,"warning");
@@ -731,9 +848,31 @@ class RedBoxDispatcher{
 		
 		$buttonClose		= "{id: 0, label: '".$message['labels']['x']."', val: 'X'}";
 		$buttonYes		= "{id: 0, label: '".$message['labels']['y']."', val: 'Y', class: 'btn-success'}";
-		$buttonNo		= "{id: 1, label: '".$message['labels']['n']."', val: 'N', class: 'btn-danger'}";
-		$buttonCancel		= "{id: 2, label: '".$message['labels']['c']."', val: 'C'}";
-		$type				= (($title!=''&& $type=='') ? 'info' : $type );
+		switch ($message['labels']['n']){
+			case APPROVE : 
+				$class = ", class: 'btn-info'";
+				break;
+			case DISAPPROVE : 
+				$class = ", class: 'btn-warning'";
+				break;
+			default : 
+				$class = ", class: 'btn-danger'";
+				break;
+		}
+		$buttonNo		= "{id: 1, label: '".$message['labels']['n']."', val: 'N'".$class."}";
+		switch ($message['labels']['c']){
+			case APPROVE : 
+				$class = ", class: 'btn-info'";
+				break;
+			case DISAPPROVE : 
+				$class = ", class: 'btn-warning'";
+				break;
+			default : 
+				$class = "";
+				break;
+		}
+		$buttonCancel		= "{id: 2, label: '".$message['labels']['c']."', val: 'C'".$class."}";
+		$type			= (($title!=''&& $type=='') ? 'info' : $type );
 		switch ($type){
 				case 'success':
 						$title = (($title=='') ? SUCCESS : $title );

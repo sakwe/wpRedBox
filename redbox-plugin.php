@@ -82,6 +82,12 @@ class RedBox{
 		$this->blog = new RedBoxBlog($this);
 		// get the facebook integration in the instance
 		$this->facebook = new RedBoxFacebook($this);
+		// get the diaspora integration in the instance
+		$this->diaspora = new RedBoxDiaspora($this);		
+		// load redbox XMPP support
+		$this->xmpp = new RedBoxXMPP($this);
+		// load redbox auto update management
+		$this->autoUpdate = new RedBoxAutoUpdate($this);
 		// load redbox tools into the action dispatcher
 		$this->dispatcher = new RedBoxDispatcher($this);
 		$options = get_option('redbox_options');

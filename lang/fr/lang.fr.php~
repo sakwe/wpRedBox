@@ -74,10 +74,6 @@ define("EDITED_BY","Édité par");
 
 define("SOURCE_BY","Source par");
 
-define("POSTS","Publications");
-
-define("PROPOSITIONS","Propositions");
-
 define("PROPOSITION_DONE_ON","Une proposition a été publiée sur");
 
 define("COMMENT_DONE_ON","Un commentaire à été rédigé sur");
@@ -89,8 +85,6 @@ define("COMMENT_APPROVED_ON","Un commentaire a été approuvé sur");
 define("YOUR_PROPOSITION_APPROVED","Votre proposition a été approuvée sur");
 
 define("YOUR_COMMENT_APPROVED","Votre commentaire a été approuvée sur");
-
-define("YOUR_COMMENT_ANSWERED","Vous avez une réponse à votre commentaire sur");
 
 define("AUTHOR","Auteur");
 

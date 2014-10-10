@@ -364,7 +364,6 @@ class RedBoxFacebook{
 		else{
 			$url = $this->redbox->dispatcher->proposed_id;
 		}
-		
 		$json_object = $this->redbox->retriever->fetchUrl($url);
 		$feedarray = json_decode($json_object);
 		foreach ( $feedarray->data as $feed_data ){
@@ -390,7 +389,7 @@ class RedBoxFacebook{
 				}
 			}
 			else{
-				$wpdb->get_results('DELETE ' . $wpdb->prefix .'redbox_fb WHERE id_fb="'.$feed_data->id.'"');
+				$wpdb->get_results('DELETE FROM ' . $wpdb->prefix .'redbox_fb WHERE id_fb="'.$feed_data->id.'"');
 			}
 		}
 		$url = $feedarray->paging->next;
@@ -465,8 +464,9 @@ class RedBoxFacebook{
 		}
 		$json_object = $this->redbox->retriever->fetchUrl($url);
 		$feedarray = json_decode($json_object);
+		$found = false;
+		$last_feed = $feedarray->data[0];
 		foreach ( $feedarray->data as $feed_data ){
-		$last_time = $feed_data->created_time;
 			if (strtotime(stripslashes($feed_data->created_time)) < $to_date){
 				$feedarray->paging->next=null;
 				break;
@@ -474,9 +474,16 @@ class RedBoxFacebook{
 			preg_match("/#".$options['redbox_page_name']."/i", $feed_data->message, $matches);
 			//preg_match("/\balternatives\b/i", $feed_data->message, $matches);
 			if($matches){
+				$found = true;
 				if (!$wpdb->get_results('SELECT id FROM ' . $wpdb->prefix .'redbox_fb WHERE id_fb="'.$feed_data->id.'"')){
 					$wpdb->insert($wpdb->prefix .'redbox_fb',array('id_fb' => $feed_data->id , 'date' => $feed_data->created_time , 'type'=>'feed'));
 				}
+			}
+		}
+		if ($found == false && count($feedarray->data) > 0){
+			if (!$wpdb->get_results('SELECT id FROM ' . $wpdb->prefix .'redbox_fb WHERE id_fb="'.$last_feed->id.'"')){
+				$wpdb->delete($wpdb->prefix .'redbox_fb',array('status' => 'bookmark'));
+				$wpdb->insert($wpdb->prefix .'redbox_fb',array('id_fb' => $last_feed->id , 'date' => $last_feed->created_time , 'type'=>'feed','status' => 'bookmark'));
 			}
 		}
 		$url = $feedarray->paging->next;
@@ -567,7 +574,8 @@ class RedBoxFacebook{
 			$exclude = ' AND r.status NOT LIKE "published" ';
 		}
 		$exclude = ' AND r.status NOT LIKE "redbox_posted_from_blog" 
-				AND r.status NOT LIKE "redbox_linked_with_blog" '.$exclude;
+				AND r.status NOT LIKE "redbox_linked_with_blog"
+				AND r.status NOT LIKE "bookmark" '.$exclude;
 		
 		if (!$this->redbox->dispatcher->proposed_id){
 			$counts= $this->redbox_import_counts($graph_type);
@@ -712,7 +720,7 @@ class RedBoxFacebook{
 	}
 	
 	public function update_fb_proposition($rb_to_import,$retrieved,$force=false){
-		
+		global $wpdb;
 		$content= null;
 		if ($force){
 			$this->redbox->manager->insert_redbox_proposition($retrieved,$rb_to_import->id_fb,true);// true = force author from fb
@@ -721,13 +729,18 @@ class RedBoxFacebook{
 		else{
 			$args = array('meta_key' => 'al2fb_facebook_link_id', 'meta_value' => $id_fb);
 			$exist_comment = get_comments( $args );
-			if (count($exist_comment) == 0){
+			//if (count($exist_comment) == 0){
 				$this->redbox->manager->insert_redbox_proposition($retrieved,$rb_to_import->id_fb,true);// true = force author from fb
 				$content =  $this->redbox->blog->get_datas_mini_viewer($retrieved);
-			}
+			//}
 		}
 		$_SESSION['imported']++;
 		if ($content) {
+			// update the redbox_fb status
+			$sql = 'UPDATE ' . $wpdb->prefix .'redbox_fb 
+				SET status="published" 
+				WHERE id_fb="'.$rb_to_import->id_fb.'"';
+			$wpdb->get_results($sql);
 			if ($force){
 				$text= REDBOX_IMPORT_FACEBOOK_PROPOSITIONS_FORCED_WORKING;
 			}

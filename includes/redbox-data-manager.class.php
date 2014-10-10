@@ -38,7 +38,7 @@ class RedBoxDataManager{
 		$mode = 'propose';
 		if ($post->post_name == $options['redbox_page_name']) {
 			preg_match_all('!https?://[\S]+!', $comment->comment_content, $match);
-			$list_datas = $this->redbox->retriever->get_datas($match[0]);
+			$list_datas = $this->redbox->retriever->get_datas($match);
 			$urls = array();
 			foreach($list_datas as $datas) echo $urls[] = $datas->source;
 			$clones = $this->redbox->manager->check_clones($urls,$mode);
@@ -48,6 +48,8 @@ class RedBoxDataManager{
 			else{
 				$_SESSION['dialogs'] = $this->redbox->dispatcher->clone_dialog($clones,$mode);
 			}
+		} else {
+			$this->redbox->xmpp->send_notification_for_comment($commentID);
 		}
 	}
 	
@@ -87,6 +89,7 @@ class RedBoxDataManager{
 			$comment_author_email = $list_datas[0]->fb_id_author."@facebook.com";
 			$comment_author_url = $list_datas[0]->url;
 			$comment_agent = "AL2FB";
+			$time = $list_datas[0]->created;
 			$user_id = '';
 		}
 		else{
@@ -134,6 +137,10 @@ class RedBoxDataManager{
 		}
 		
 		$this->set_redbox_comment_datas($commentID,$list_datas,$proposition_from_facebook);
+		
+		// Send the notification via XMPP 
+		$this->redbox->xmpp->send_notification_for_proposition($commentID);
+		
 		return $commentID;
 	}
 	
@@ -192,33 +199,8 @@ class RedBoxDataManager{
 				$post_type='post';
 				$taxonomy = 'category';
 			}
-		
 			if (!(stripos($datas->description,"<!--more-->") > 0)){
 				$datas->description="VOTRE TEXTE ICI<br />\n\n<!--more--><br />".$datas->description;
-			}
-			else {
-				$phrases = explode("\n",$datas->description);
-				if (count($phrases)>1){
-					$afterMore = "";
-					if (str_word_count($phrases[0]) < 30) {
-						$beforeMore = "";
-						foreach($phrases as $phrase) {
-							if (str_word_count($beforeMore) < 30) {
-								$beforeMore.= $phrase."\n";
-							} else {
-								$afterMore.= $phrase."\n";
-							}
-						} 
-					} else { 
-						$beforeMore = $phrases[0];
-						$afterMore = str_replace($beforeMore,"",$datas->description);
-					}
-					$datas->description = $beforeMore."<br />\n\n<!--more--><br />".$afterMore;
-					
-				}
-				else{
-
-				}
 			}
 			// set main datas for the post in draft mode before (will publish it after meta datas settings)
 			$slug = suppr_specialchar(suppr_accents($datas->title));
@@ -303,10 +285,7 @@ class RedBoxDataManager{
 					if (!is_wp_error($id)){
 						if ($datas->type == 'gallery' && $id) $l_photos.= $id.',';
 						if ($picture->in_gallery && $id) $l_gallery.= $id.',';
-					} else {
-					
-						//echo "ERRRRROOOOOOOORRRR!";
-					}
+					} 
 				}
 			}
 			//exit;
@@ -413,8 +392,29 @@ class RedBoxDataManager{
 			$content = explode('<!--more-->',$post->post_content);
 			$fb_text = strip_tags($content[0]);
 			$fb_text = strip_tags($fb_text);
+			$categories = get_the_category( $post_id );
+			$category = $categories[0]->name;
+			if (substr($category,-1)=="s") $category = substr($category,0,strlen($category)-1);
+			$fb_text.= "\n\n". $category . " : " . get_permalink($post_id);
 			$fb_text.= "\n\n" . $this->redbox->configuration->fb_post_sign;
 			update_post_meta($post->ID, "al2fb_facebook_excerpt", $fb_text);
+			$description = $fb_text;
+			$phrases = explode("\n",$description);
+			if (count($phrases)>0){
+				if (str_word_count($phrases[0]) < 30) {
+					$beforeMore = "";
+					foreach($phrases as $phrase) {
+						if (str_word_count($beforeMore) < 30) {
+							$beforeMore.= $phrase."\n";
+						} else {
+							$afterMore.= $phrase."\n";
+						}
+					} 
+				} else { 
+					$beforeMore = $phrases[0];
+				}
+				$fb_text = $beforeMore;
+			} 
 			update_post_meta($post->ID, "al2fb_facebook_text", $fb_text);
 			update_post_meta($post->ID, "_wpas_mess", $fb_text);
 		}
@@ -636,6 +636,7 @@ class RedBoxDataManager{
 		$file_array['name'] = urldecode(basename($url));
 
 		// TODO : SUPPORT FALLBACK DL
+		// seems to be OK but need more tests
 		//$this->redbox->fallBack = false;
 		/////////////////////////////
 		

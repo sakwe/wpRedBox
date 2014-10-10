@@ -473,12 +473,13 @@ class RedboxDataRetriever{
 
 	public function convertedString($string){
 		$debug= $string."<br />";
+		$string=str_replace("’","'",$string);
 		$tmp_string = $string;
 		// check the caracter coding for html
 		$string = preg_replace("/%u([0-9a-f]{3,4})/i","&#x\\1;",urldecode($string));
 		$debug.= "urldecode<br />";
 		$debug.= $string."<br />\n";
-		if (strpos($this->contentType,'utf-8')>0 || strpos($this->contentType,'utf8')>0 || strpos($this->contentType,'UTF-8')>0 || strpos($this->contentType,'UTF8')>0){
+		if (valid_utf8($string) || strpos($this->contentType,'utf-8')>0 || strpos($this->contentType,'utf8')>0 || strpos($this->contentType,'UTF-8')>0 || strpos($this->contentType,'UTF8')>0){
 			if (valid_utf8($string)){
 				$debug.= "detect and iconv : ".$this->contentType."<br />";
 				$string = iconv(mb_detect_encoding($string, mb_detect_order(), true), "UTF-8", $string);
@@ -494,12 +495,14 @@ class RedboxDataRetriever{
 					$string = $string_decoded;
 					$debug.= $string."<br />\n";
 				}
-
+				
 				$string_decoded=str_replace("’","'",$tmp_string);
 				$string_decoded=str_replace("Â«","\"",$string_decoded);
 				$string_decoded=str_replace("Â»","\"",$string_decoded);
 				$string_decoded=str_replace("«","\"",$string_decoded);
 				$string_decoded=str_replace("»","\"",$string_decoded);
+				$string_decoded=str_replace("Ã©","é",$string_decoded);
+				$string_decoded=str_replace("Ã®","î",$string_decoded);
 				$string_decoded=str_replace("—","-",$string_decoded);
 				$string_decoded = Encoding::fixUTF8($string_decoded);
 				if (strlen($string_decoded) <= strlen($string) ){
@@ -562,6 +565,7 @@ class RedboxDataRetriever{
 		//$string = html_entity_decode($string,ENT_QUOTES);
 		$debug.= "result : <br />".$string."<br />\n<br /><hr />";
 		//echo $debug;
+		//exit;
 		return $string;
 	}
 
@@ -1252,7 +1256,28 @@ class RedboxDataRetriever{
 		foreach($this->list_datas as $datas){
 			if ($datas->message != ''){
 				if (!(stripos($datas->description,"<!--more-->") > 0)){
-					$content.= processString($datas->message) ."<br /><!--more--><br />";
+					$description = $datas->message;
+					$phrases = explode("\n",$description);
+					if (count($phrases)>0){
+						$afterMore = "";
+						if (str_word_count($phrases[0]) < 40) {
+							$beforeMore = "";
+							foreach($phrases as $phrase) {
+								if (str_word_count($beforeMore) < 40) {
+									$beforeMore.= $phrase."\n";
+								} else {
+									$afterMore.= $phrase."\n";
+								}
+							} 
+						} else { 
+							$beforeMore = $phrases[0];
+							$afterMore = str_replace($beforeMore,"",$description);
+						}
+						$description = $beforeMore."\n<!--more-->\n".$afterMore;
+					} else {
+						$description = $description."\n<!--more-->\n";
+					}
+					$content.= processString($description);
 				}
 				else{
 					$content.= processString($datas->message) ."<br />";

@@ -11,7 +11,7 @@ class RedBoxUser{
 		$this->redbox = $redbox;
 
 		add_action('admin_menu', array(&$this, "setup_menus"));
-		add_action( 'admin_bar_menu', array( &$this, 'redbox_admin_bar' ), 4 );
+		add_action( 'admin_bar_menu', array( &$this, 'redbox_admin_bar' ), 99999 );
 		add_action( 'post_submitbox_misc_actions', array( &$this, 'redbox_show_box_edit' ) );
 		
 		if (isset($_GET['p'])){
@@ -60,11 +60,11 @@ class RedBoxUser{
 		) );
 		$wp_admin_bar->add_menu( array(
 			'parent' => false,
-			'id'     => 'input',
+			'id'     => 'redbox-input',
 			'title'  => $form,
 			'meta'   => array(
 				'class'    => 'admin-bar-redbox',
-				'tabindex' => -1
+				'tabindex' => 2
 			)
 		) );
 	}

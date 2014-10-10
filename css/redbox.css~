@@ -323,7 +323,7 @@
 ul#redbox-filters {display: block;width: 100%;margin:0px;padding:10px 0px 30px 0px;}
 #redbox-filters li {display: inline-block; margin: 0px 20px 0px 0px;}
 #redbox-filters a {border:0px; text-align: center; padding:8px 0px 8px 10px; }
-#redbox-filters a span.post-count {margin-left:10px;padding:8px 10px 8px 10px;}
+#redbox-filters a span.post-count {margin-left:15px;padding:8px 10px 8px 10px;}
 .redbox_navigation{display:inline-block; margin: 0px 20px 0px 0px;clear:none;float:right;}
 .redbox_navigation a{border-bottom: 0; text-align: center; padding:10px 0px 10px 10px;}
 

@@ -16,6 +16,7 @@ class RedBoxAdmin{
 	}
 	
 	public function plugin_init(){
+	
 		// register and configurate admin sections for the interface
 		register_setting( 'redbox_options', 'redbox_options', array(__CLASS__, "validate_fields"));			
 		add_settings_section('redbox_wordpress_options', '<hr />'.REDBOX_CONFIGURATION, array(&$this, "redbox_wordpress_options"), 'redbox');
@@ -35,11 +36,6 @@ class RedBoxAdmin{
 		);";
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 		dbDelta( $sql );
-	}
-
-	public function allow_upload_contributors() {
-		$contributor = get_role('contributor');
-		$contributor->add_cap('upload_files');
 	}
 
 	public function redbox_add_dashboard_widget() {
@@ -66,22 +62,18 @@ class RedBoxAdmin{
 		}
 		$widget = '<div class="redbox_dashboard_widget">';
 		$widget.= '<form name="redbox_form" method="post" style="display:inline-block;text-align:right;width:100%;">';
-		$widget.= '<input type="hidden" id="redbox_action" name="redbox_action" value="redbox_submit_from_admin_widget" />';
 		$widget.= '<textarea class="redbox_textarea" id="redbox_textarea" placeholder="'.$placeholder.'" name="url_to_import" style="height:150px;">';
 		if (isset($_POST['url_to_import'])) $widget.=  stripslashes(trim($_POST['url_to_import']));
 		$widget.= '</textarea>';
-		$widget.= '<div id="redbox_widget_status" style="float:right;"></div>';
-		$widget.= '<input style="display:inline-block;text-align:right;" type="button" class="redbox_button redbox_button-info" onclick="redbox_ajax_do(\'redbox_submit_from_admin_widget\',document.getElementById(\'redbox_textarea\').value,true,true)" value="'.$txtBtn.'" />';
+		$widget.= '<div id="redbox_widget_status" style=""></div>';
+		$widget.= '<input style="display:inline-block;text-align:right;" type="button" class="redbox_button redbox_button-info" onclick="redbox_ajax_do(\'redbox_submit_from_adminbar\',document.getElementById(\'redbox_textarea\').value,true,false)" value="'.$txtBtn.'" />';
 		$widget.= '';
 		$widget.= '</form>';
 		$widget.= '</div>';
 		echo $widget;
 	}
-	
+
 	public function setup_menus() {
-		if ( current_user_can('contributor') && !current_user_can('upload_files') ) {
-			add_action('admin_init', array(&$this,'allow_upload_contributors'));
-		}
 		add_options_page('RedBox', 'RedBox config', 'manage_options', 'redbox', array(&$this, "plugin_options"));
 	}
 	
@@ -107,8 +99,7 @@ class RedBoxAdmin{
 			"redbox_to_clean_in_urls" => $_POST['redbox_to_clean_in_urls'],
 			"redbox_sub_replace_source" => $_POST['redbox_sub_replace_source'],
 			"redbox_to_clean_in_titles" => $_POST['redbox_to_clean_in_titles'],
-			"redbox_to_clean_in_texts" => $_POST['redbox_to_clean_in_texts'],
-			"redbox_shortcode_to_add" => $_POST['redbox_shortcode_to_add']
+			"redbox_to_clean_in_texts" => $_POST['redbox_to_clean_in_texts']
 		);
 	}
 	
@@ -142,9 +133,6 @@ class RedBoxAdmin{
 		echo '<li><span>'.REDBOX_FALLBACK_URL.' : </span>
 			<input type="text" name="redbox_fallBackUrl" class="redbox_config_imputbox" value="'.$options['redbox_fallBackUrl'].'" />
 			</li>';
-		echo '<li><span>'.REDBOX_SHORTCODE_TO_ADD.' : </span>
-			<textarea name="redbox_shortcode_to_add" class="redbox_config_textarea">'.stripslashes($options['redbox_shortcode_to_add']).'</textarea>
-			</li>';
 		echo '</ul></div>';
 		if ($options['redbox_page_id']==0 && trim($options['redbox_page_name'])!='' ) {
 			echo $this->redbox->dispatcher->dialogBox(REDBOX_ERROR_PAGE_NOT_EXIST,REDBOX_ERROR_CONFIGURATION,"warning");
@@ -157,25 +145,25 @@ class RedBoxAdmin{
 		echo "<div class=\"wrap\"><div id=\"redbox_wp_options\"><p>".REDBOX_IMPORT_BLOG_TITLE."</p></div>";		
 		echo '<ul id="redbox_import_options">';
 		echo '<li><span>'.REDBOX_FB_POST_SIGN.' : </span>
-			<input type="text" name="redbox_fb_post_sign" class="redbox_config_imputbox" value="'.stripslashes($options['redbox_fb_post_sign']).'" />
+			<input type="text" name="redbox_fb_post_sign" class="redbox_config_imputbox" value="'.$options['redbox_fb_post_sign'].'" />
 			</li>';
 		echo '<li><span>'.REDBOX_AUTOTAGS_LIST.' : </span>
-			<textarea name="facebook_tags_field" class="redbox_config_textarea">'.stripslashes($options['facebook_tags_for_posts']).'</textarea>
+			<textarea name="facebook_tags_field" class="redbox_config_textarea">'.$options['facebook_tags_for_posts'].'</textarea>
 			</li>';
 		echo '<li><span>'.REDBOX_CROWDFOUNDING.' : </span>
-			<textarea name="redbox_crowdfundings" class="redbox_config_textarea">'.stripslashes($options['redbox_crowdfundings']).'</textarea>
+			<textarea name="redbox_crowdfundings" class="redbox_config_textarea">'.$options['redbox_crowdfundings'].'</textarea>
 			</li>';
 		echo '<li><span>'.REDBOX_TO_CLEAN_IN_URLS.' : </span>
-			<textarea name="redbox_to_clean_in_urls" class="redbox_config_textarea">'.stripslashes($options['redbox_to_clean_in_urls']).'</textarea>
+			<textarea name="redbox_to_clean_in_urls" class="redbox_config_textarea">'.$options['redbox_to_clean_in_urls'].'</textarea>
 			</li>';
 		echo '<li><span>'.REDBOX_SUB_REPLACE_SOURCE.' : </span>
-			<textarea name="redbox_sub_replace_source" class="redbox_config_textarea">'.stripslashes($options['redbox_sub_replace_source']).'</textarea>
+			<textarea name="redbox_sub_replace_source" class="redbox_config_textarea">'.$options['redbox_sub_replace_source'].'</textarea>
 			</li>';
 		echo '<li><span>'.REDBOX_TO_CLEAN_IN_TITLES.' : </span>
-			<textarea name="redbox_to_clean_in_titles" class="redbox_config_textarea">'.stripslashes($options['redbox_to_clean_in_titles']).'</textarea>
+			<textarea name="redbox_to_clean_in_titles" class="redbox_config_textarea">'.$options['redbox_to_clean_in_titles'].'</textarea>
 			</li>';
 		echo '<li><span>'.REDBOX_TO_CLEAN_IN_TEXTS.' : </span>
-			<textarea name="redbox_to_clean_in_texts" class="redbox_config_textarea">'.stripslashes($options['redbox_to_clean_in_texts']).'</textarea>
+			<textarea name="redbox_to_clean_in_texts" class="redbox_config_textarea">'.$options['redbox_to_clean_in_texts'].'</textarea>
 			</li>';
 		echo '</ul></div>';
 		
