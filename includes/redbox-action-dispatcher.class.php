@@ -114,8 +114,7 @@ class RedBoxDispatcher{
 			
 			case "diaspora_test_post" : 
 				$this->redbox->diaspora->setProtocol("https");
-				$this->redbox->diaspora->setId("mondi@mondiaspora.org");
-				$this->redbox->diaspora->setPassword("pogomonkey");
+			
 				$this->redbox->diaspora->setMessage("Coucou !");
 				echo $this->redbox->diaspora->postToDiaspora();
 				exit;
